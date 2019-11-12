@@ -5,7 +5,7 @@ ENV GRAVITEE_VERSION=https://download.gravitee.io/graviteeio-apim/distributions/
 RUN apk add --update --no-cache wget busybox-extras busybox-suid curl shadow openjdk11 unzip && \
 mkdir -p /opt && cd tmp/ && echo "DESCARGANDO GRAVITEE..." && wget --no-verbose $GRAVITEE_VERSION -O /tmp/api.zip > /dev/null
 
-RUN unzip api.zip && mv graviteeio-full*/graviteeio-management-api* /opt/management && \
+RUN cd tmp/ && unzip api.zip && mv graviteeio-full*/graviteeio-management-api* /opt/management && \
 rm -rf /tmp/*.zip /tmp/graviteeio* /etc/localtime
 
 COPY run /usr/bin/run
@@ -17,6 +17,8 @@ chgrp -R 0 /usr/bin/run /opt /etc/localtime /etc/timezone  && \
 chmod -R g=u /usr/bin/run /opt /etc/localtime /etc/timezone
 
 USER 1001
+
+WORKDIR /opt/management
 
 EXPOSE 8002
 
