@@ -267,10 +267,10 @@
         ds:
           mongodb:
             dbname: gravitee
-            host: localhost
+            host: mongo
             port: 27017
           elastic:
-            host: localhost
+            host: elasticsearch
             port: 9200
 
         # Sharding tags configuration
@@ -299,7 +299,7 @@
               port: 0
               hazelcast:
                 config:
-                  path: ${gravitee.home}/config/hazelcast.xml
+                  path: /opt/gateway/config/hazelcast.xml
 
         #legacy:
         # Enable this parameter if you want the gateway act like version <1.25.11 .
@@ -471,6 +471,9 @@
               volumeMounts:
                 - name: gateway-config
                   mountPath: /opt/gateway/config
+                - mountPath: /opt/gateway/data
+                  name: gateway
+                  subPath: gateway                  
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
@@ -479,6 +482,9 @@
             - configMap:
                 name: gateway-config
               name: gateway-config
+            - name: gateway
+              persistentVolumeClaim:
+                claimName: gravitee-api-gateway-data               
       test: false
       triggers:
         - type: ConfigChange
@@ -1017,10 +1023,10 @@
         ds:
           mongodb:
             dbname: gravitee
-            host: localhost
+            host: mongo
             port: 27017
           elastic:
-            host: localhost
+            host: elasticsearch
             port: 9200
 
         jwt:
@@ -1060,7 +1066,7 @@
         portalURL: http://localhost:3000/
 
         search:
-          data: ${gravitee.home}/data
+          data: /opt/management/data
 
         # global configuration of the http client
         #httpClient:
@@ -1233,6 +1239,9 @@
               volumeMounts:
                 - mountPath: /opt/management/config
                   name: management-api-config
+                - mountPath: /opt/management/data
+                  name: management-api
+                  subPath: management-api                  
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
@@ -1241,6 +1250,9 @@
             - configMap:
                 name: management-api-config
               name: management-api-config
+            - name: management-api
+              persistentVolumeClaim:
+                claimName: gravitee-api-gateway-data              
       test: false
       triggers:
         - type: ConfigChange
