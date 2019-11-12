@@ -59,18 +59,18 @@
         ############################################################################################################
 
         # Gateway HTTP server
-        #http:
-        #  port: 8082
-        #  host: 0.0.0.0
-        #  idleTimeout: 0
-        #  tcpKeepAlive: true
-        #  compressionSupported: false
-        #  maxHeaderSize: 8192
-        #  maxChunkSize: 8192
-        #  instances: 0
-        #  requestTimeout: 0
-        #  secured: false
-        #  alpn: false
+        http:
+          port: 8082
+          host: 0.0.0.0
+          idleTimeout: 0
+          tcpKeepAlive: true
+          compressionSupported: false
+          maxHeaderSize: 8192
+          maxChunkSize: 8192
+          instances: 0
+          requestTimeout: 0
+          secured: false
+          alpn: false
         #  ssl:
         #    clientAuth: false
         #    keystore:
@@ -200,7 +200,7 @@
             http:
               enabled: true
               port: 18082
-              host: localhost
+              host: 0.0.0.0
               authentication:
                 # authentication type to be used for the core services
                 # - none : to disable authentication
@@ -442,30 +442,32 @@
               imagePullPolicy: Always
               name: gateway
               ports:
-                - containerPort: 8002
-                  protocol: TCP                                       
+                - containerPort: 8082
+                  protocol: TCP
+                - containerPort: 18082
+                  protocol: TCP                                                          
               livenessProbe:
                 failureThreshold: 3
-                initialDelaySeconds: 60
+                initialDelaySeconds: 120
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
-                  port: 8002
+                  port: 8082
                   path: /
                 timeoutSeconds: 15
               readinessProbe:
                 failureThreshold: 3
-                initialDelaySeconds: 60
+                initialDelaySeconds: 120
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
-                  port: 8002
+                  port: 8082
                   path: /
                 timeoutSeconds: 15
               resources:
                 limits:
-                  cpu: 500m
-                  memory: 512Mi
+                  cpu: 1000m
+                  memory: 1024Mi
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
               volumeMounts:
@@ -542,15 +544,34 @@
     spec:
       ports:
         - name: http
-          port: 8002
+          port: 8082
           protocol: TCP
-          targetPort: 8002                         
+          targetPort: 8082
+        - name: admin-http
+          port: 18082
+          protocol: TCP
+          targetPort: 18082                                    
       selector:
         app: gravitee-api-gateway
         deploymentconfig: gateway
       sessionAffinity: None
       type: ClusterIP
 
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: gateway
+    spec:
+      host:
+      port:
+        targetPort: http
+      to:
+        kind: Service
+        name: gateway
+        weight: 100
+      wildcardPolicy: None       
     
 
   - apiVersion: v1
@@ -766,24 +787,24 @@
         ############################################################################################################
 
         # HTTP Server
-        #jetty:
+        jetty:
         #  IP/hostname to bind to. Default is 0.0.0.0
-        #  host: 0.0.0.0
-        #  port: 8083
-        #  idleTimeout: 30000
-        #  acceptors: -1
-        #  selectors: -1
-        #  pool:
-        #    minThreads: 10
-        #    maxThreads: 200
-        #    idleTimeout: 60000
-        #    queueSize: 6000
-        #  jmx: false
-        #  statistics: false
-        #  accesslog:
-        #    enabled: true
-        #    path: ${gravitee.home}/logs/gravitee_accesslog_yyyy_mm_dd.log
-        #  secured: false
+          host: 0.0.0.0
+          port: 8083
+          idleTimeout: 30000
+          acceptors: -1
+          selectors: -1
+          pool:
+            minThreads: 10
+            maxThreads: 200
+            idleTimeout: 60000
+            queueSize: 6000
+          jmx: false
+          statistics: false
+          accesslog:
+            enabled: true
+            path: ${gravitee.home}/logs/gravitee_accesslog_yyyy_mm_dd.log
+          secured: false
         #  ssl:
         #    keystore:
         #      path: ${gravitee.home}/security/keystore.jks
@@ -880,7 +901,7 @@
             http:
               enabled: true
               port: 18083
-              host: localhost
+              host: 0.0.0.0
               authentication:
                 # authentication type to be used for the core services
                 # - none : to disable authentication
@@ -1214,7 +1235,7 @@
                   protocol: TCP                                         
               livenessProbe:
                 failureThreshold: 3
-                initialDelaySeconds: 60
+                initialDelaySeconds: 120
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
@@ -1223,7 +1244,7 @@
                 timeoutSeconds: 15
               readinessProbe:
                 failureThreshold: 3
-                initialDelaySeconds: 60
+                initialDelaySeconds: 120
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
@@ -1232,8 +1253,8 @@
                 timeoutSeconds: 15
               resources:
                 limits:
-                  cpu: 500m
-                  memory: 512Mi
+                  cpu: 1000m
+                  memory: 2048Mi
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
               volumeMounts:
@@ -1299,6 +1320,21 @@
         - type: ConfigChange
 
 
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: management-api
+    spec:
+      host:
+      port:
+        targetPort: http
+      to:
+        kind: Service
+        name: management-api
+        weight: 100
+      wildcardPolicy: None        
 
 
   - apiVersion: v1
@@ -1312,7 +1348,11 @@
         - name: http
           port: 8083
           protocol: TCP
-          targetPort: 8083                            
+          targetPort: 8083
+        - name: http-admin
+          port: 18083
+          protocol: TCP
+          targetPort: 18083                                     
       selector:
         app: gravitee-api-gateway
         deploymentconfig: management-api
@@ -1333,6 +1373,33 @@
 ### fin admin
 
 ### start portal
+
+  - apiVersion: v1
+    data:
+      constants.json: |-
+        {
+          "baseURL": "http://management-api/management/"
+        }
+    kind: ConfigMap
+    metadata:
+      name: management-ui-config
+
+
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: management-ui
+    spec:
+      host:
+      port:
+        targetPort: http
+      to:
+        kind: Service
+        name: management-ui
+        weight: 100
+      wildcardPolicy: None    
 
   - apiVersion: v1
     kind: DeploymentConfig
@@ -1392,11 +1459,18 @@
                   path: /
                 timeoutSeconds: 15                             
               terminationMessagePath: /dev/termination-log
-              terminationMessagePolicy: File                                 
+              terminationMessagePolicy: File
+              volumeMounts:
+                - mountPath: /opt/config
+                  name: management-ui-config                                             
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
           terminationGracePeriodSeconds: 30
+          volumes:
+            - configMap:
+                name: management-ui-config
+              name: management-ui-config          
       test: false
       triggers:
         - type: ConfigChange
@@ -1539,7 +1613,7 @@
                 timeoutSeconds: 15
               resources:
                 limits:
-                  memory: 1024Mi
+                  memory: 2048Mi
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
               volumeMounts:
