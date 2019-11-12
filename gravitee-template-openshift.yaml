@@ -4,13 +4,13 @@
   metadata:
     name: gateway-openshift-mvilche
     labels:
-      template: gatewaya-openshift-mvilche
+      template: management-api-openshift-mvilche
       autor: "Martin_Fabrizzio_Vilche"
     annotations:
-      openshift.io/display-name: "gatewaya-openshift-mvilche"
+      openshift.io/display-name: "management-api-openshift-mvilche"
       iconClass: "icon-github"
       description: >-
-        gatewaya api gateway INTEGRACION OPENSHIFT
+        management-api api gateway INTEGRACION OPENSHIFT
         Martin Fabrizzio Vilche.
         https://github.com/mvilche.
 
@@ -31,7 +31,7 @@
     metadata:
       finalizers:
       - kubernetes.io/pvc-protection
-      name: gateway-api-gateway-data
+      name: gravitee-api-gateway-data
     spec:
       accessModes:
       - ReadWriteOnce
@@ -435,7 +435,7 @@
           containers:
             - env:
                 - name: WAITFOR_HOST
-                  value: mongodb
+                  value: mongo
                 - name: WAITFOR_PORT
                   value: '27017'
               image: "gateway:latest"
@@ -470,7 +470,7 @@
               terminationMessagePolicy: File
               volumeMounts:
                 - name: gateway-config
-                  mountPath: /etc/gateway
+                  mountPath: /opt/gateway/config
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
@@ -518,7 +518,7 @@
         type: Git
       strategy:
         dockerStrategy:
-          dockerfilePath: Dockerfile.centos7
+          dockerfilePath: Dockerfile
         type: Docker
       successfulBuildsHistoryLimit: 5
       triggers:
@@ -535,22 +535,10 @@
       name: gateway
     spec:
       ports:
-        - name: admin
-          port: 8001
+        - name: http
+          port: 8002
           protocol: TCP
-          targetPort: 8001
-        - name: nginx-secure
-          port: 8443
-          protocol: TCP
-          targetPort: 8443
-        - name: nginx
-          port: 8000
-          protocol: TCP
-          targetPort: 8000
-        - name: admin-secure
-          port: 8444
-          protocol: TCP
-          targetPort: 8444                              
+          targetPort: 8002                         
       selector:
         app: gravitee-api-gateway
         deploymentconfig: gateway
@@ -669,7 +657,7 @@
           volumes:
             - name: mongo
               persistentVolumeClaim:
-                claimName: gateway-api-gateway-data
+                claimName: gravitee-api-gateway-data
             - configMap:
                 name: mongo-config
               name: mongo-config
@@ -712,7 +700,7 @@
         type: Git
       strategy:
         dockerStrategy:
-          dockerfilePath: Dockerfile.centos7
+          dockerfilePath: Dockerfile
         type: Docker
       successfulBuildsHistoryLimit: 5
       triggers:
@@ -752,140 +740,429 @@
 ### fin mongo
 
 
-
-### COMIENZO postgresql
-  - apiVersion: v1
-    kind: DeploymentConfig
-    metadata:
-      labels:
-        app: gravitee-api-gateway
-      name: postgresql
-    spec:
-      replicas: 1
-      selector:
-        app: gravitee-api-gateway
-        deploymentconfig: postgresql
-      strategy:
-        activeDeadlineSeconds: 21600
-        resources: {}
-        type: Recreate
-      template:
-        metadata:
-          labels:
-            app: gravitee-api-gateway
-            deploymentconfig: postgresql
-        spec:
-          containers:
-            - env:
-                - name: POSTGRESQL_USER
-                  value: gateway
-                - name: POSTGRESQL_PASSWORD
-                  value: gateway
-                - name: POSTGRESQL_DATABASE
-                  value: gateway
-              image: postgresql:96
-              imagePullPolicy: Always
-              name: postgresql
-              ports:
-                - containerPort: 5432
-                  protocol: TCP
-              readinessProbe:
-                exec:
-                  command:
-                  - /bin/sh
-                  - -i
-                  - -c
-                  - psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d $POSTGRESQL_DATABASE -c 'SELECT 1'
-                failureThreshold: 3
-                initialDelaySeconds: 60
-                periodSeconds: 10
-                successThreshold: 1
-                timeoutSeconds: 1
-              resources:
-                limits:
-                  memory: 256Mi
-              terminationMessagePath: /dev/termination-log
-              terminationMessagePolicy: File
-              volumeMounts:
-                - mountPath: /var/lib/pgsql/data
-                  name: postgresql
-                  subPath: postgresql
-          dnsPolicy: ClusterFirst
-          restartPolicy: Always
-          schedulerName: default-scheduler
-          securityContext: {}
-          terminationGracePeriodSeconds: 30
-          volumes:
-            - name: postgresql
-              persistentVolumeClaim:
-                claimName: gateway-api-gateway-data
-      test: false
-      triggers:
-        - type: ConfigChange
-        - imageChangeParams:
-            automatic: true
-            containerNames:
-              - postgresql
-            from:
-              kind: ImageStreamTag
-              name: 'postgresql:96'
-          type: ImageChange
-
-
-
-  - apiVersion: v1
-    kind: Service
-    metadata:
-      labels:
-        app: gravitee-api-gateway
-      name: postgresql
-    spec:
-      ports:
-        - name: tcp
-          port: 5432
-          protocol: TCP
-          targetPort: 5432
-      selector:
-        app: gravitee-api-gateway
-        deploymentconfig: postgresql
-      sessionAffinity: None
-      type: ClusterIP
-
-
-
-  - apiVersion: v1
-    kind: ImageStream
-    metadata:
-        name: postgresql
-    spec:
-        tags:
-          - name: '96'
-            from:
-                kind: DockerImage
-                name: centos/postgresql-96-centos7:latest
-
-
-###### FIN postgresql
-
-
-
-
-#### comienzo gatewaya
+#### comienzo api admin
 
 
   - apiVersion: v1
     data:
-      env: |-
-        PORT=1337
-        NODE_ENV=production
-        gatewayA_HOOK_TIMEOUT=120000
-        DB_ADAPTER=mongo
-        DB_URI=mongodb://mongo:27017/gatewaya
-        gatewayA_LOG_LEVEL=warn
-        TOKEN_SECRET=some_secret_token
+      gravitee.yml: |-
+        ############################################################################################################
+        ################################ Gravitee.IO Management API - Configuration ################################
+        ############################################################################################################
+
+        ############################################################################################################
+        # This file is the general configuration of Gravitee.IO Management API:
+        # - Properties (and respective default values) in comment are provided for information.
+        # - You can reference other property by using ${property.name} syntax
+        # - gravitee.home property is automatically set-up by launcher and refers to the installation path. Do not override it !
+        #
+        # Please have a look to http://docs.gravitee.io/ for more options and fine-grained granularity
+        ############################################################################################################
+
+        # HTTP Server
+        #jetty:
+        #  IP/hostname to bind to. Default is 0.0.0.0
+        #  host: 0.0.0.0
+        #  port: 8083
+        #  idleTimeout: 30000
+        #  acceptors: -1
+        #  selectors: -1
+        #  pool:
+        #    minThreads: 10
+        #    maxThreads: 200
+        #    idleTimeout: 60000
+        #    queueSize: 6000
+        #  jmx: false
+        #  statistics: false
+        #  accesslog:
+        #    enabled: true
+        #    path: ${gravitee.home}/logs/gravitee_accesslog_yyyy_mm_dd.log
+        #  secured: false
+        #  ssl:
+        #    keystore:
+        #      path: ${gravitee.home}/security/keystore.jks
+        #      password: secret
+        #    truststore:
+        #      path: ${gravitee.home}/security/truststore.jks
+        #      password: secret
+
+        http:
+          api:
+            # Configure the listening path for the API. Default to /management
+            #entrypoint: /management
+          cors:
+            # Allows to configure the header Access-Control-Allow-Origin (default value: *)
+            # '*' is a valid value but is considered as a security risk as it will be opened to cross origin requests from anywhere.
+            #allow-origin: http://developer.mycompany.com
+            # Allows to define how long the result of the preflight request should be cached for (default value; 1728000 [20 days])
+            #max-age: 864000
+            # Which methods to allow (default value: OPTIONS, GET, POST, PUT, DELETE)
+            #allow-methods: 'OPTIONS, GET, POST, PUT, DELETE'
+            # Which headers to allow (default values: Cache-Control, Pragma, Origin, Authorization, Content-Type, X-Requested-With, If-Match)
+            #allow-headers: 'X-Requested-With'
+          hsts:
+            enabled: true
+            include-sub-domains: true
+            max-age: 31536000
+
+        # Plugins repository
+        #plugins:
+        #  path:
+        #    - ${gravitee.home}/plugins
+        #    - ${gravitee.home}/my-custom-plugins
+        # If a external is already installed (but with a different version), management node does not start anymore
+        #  failOnDuplicate: true
+
+        # Management repository is used to store global configuration such as APIs, applications, apikeys, ...
+        # This is the default configuration using MongoDB (single server)
+        # For more information about MongoDB configuration, please have a look to:
+        # - http://api.mongodb.org/java/current/com/mongodb/MongoClientOptions.html
+        management:
+          type: mongodb
+          mongodb:
+            dbname: ${ds.mongodb.dbname}
+            host: ${ds.mongodb.host}
+            port: ${ds.mongodb.port}
+        #    username:
+        #    password:
+        #    connectionsPerHost: 0
+        #    connectTimeout: 500
+        #    maxWaitTime: 120000
+        #    socketTimeout: 500
+        #    socketKeepAlive: false
+        #    maxConnectionLifeTime: 0
+        #    maxConnectionIdleTime: 0
+        #    serverSelectionTimeout: 0
+        #    description: gravitee.io
+        #    heartbeatFrequency: 10000
+        #    minHeartbeatFrequency: 500
+        #    heartbeatConnectTimeout: 1000
+        #    heartbeatSocketTimeout: 20000
+        #    localThreshold: 15
+        #    minConnectionsPerHost: 0
+        #    sslEnabled: false
+        #    threadsAllowedToBlockForConnectionMultiplier: 5
+        #    cursorFinalizerEnabled: true
+        # possible values are 1,2,3... (the number of node) or 'majority'
+        #    writeConcern: 1
+        #    wtimeout: 0
+        #    journal: true
+
+        # Management repository: single MongoDB using URI
+        # For more information about MongoDB configuration using URI, please have a look to:
+        # - http://api.mongodb.org/java/current/com/mongodb/MongoClientURI.html
+        #management:
+        #  type: mongodb
+        #  mongodb:
+        #    uri: mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
+
+        # Management repository: clustered MongoDB
+        #management:
+        #  type: mongodb
+        #  mongodb:
+        #    servers:
+        #      - host: mongo1
+        #        port: 27017
+        #      - host: mongo2
+        #        port: 27017
+        #    dbname: ${ds.mongodb.dbname}
+        #    connectTimeout: 500
+        #    socketTimeout: 250
+
+        services:
+          core:
+            http:
+              enabled: true
+              port: 18083
+              host: localhost
+              authentication:
+                # authentication type to be used for the core services
+                # - none : to disable authentication
+                # - basic : to use basic authentication
+                # default is "basic"
+                type: basic
+                users:
+                  admin: adminadmin
+
+          # metrics service
+          metrics:
+            enabled: false
+            prometheus:
+              enabled: true
+
+        # Analytics repository is used to store all reporting, metrics, health-checks stored by gateway instances
+        # This is the default configuration using Elasticsearch
+        analytics:
+          type: elasticsearch
+          elasticsearch:
+            endpoints:
+              - http://${ds.elastic.host}:${ds.elastic.port}
+        #    index: gravitee
+        #    index_per_type: true
+        #    cross_cluster:
+        #      mapping:
+        #        tenant_id: cluster_name
+        #        tenant_id: cluster_name
+        #    security:
+        #      username: user
+        #      password: secret
+        #    http:
+        #      timeout: 10000 # in milliseconds
+        #
+
+        # Authentication and identity sources
+        # Users can have following roles (authorities):
+        #  USER: Can access portal and be a member of an API
+        #  API_PUBLISHER: Can create and manage APIs
+        #  API_CONSUMER: Can create and manage Applications
+        #  ADMIN: Can manage global system
+        security:
+          # When using an authentication providers, use trustAll mode for TLS connections
+          # trustAll: false
+          providers:  # authentication providers
+            - type: memory
+              # allow search results to display the user email. Be careful, It may be contrary to the user privacy.
+        #      allow-email-in-search-results: true
+              # password encoding/hashing algorithm. One of:
+              # - bcrypt : passwords are hashed with bcrypt (supports only $2a$ algorithm)
+              # - none : passwords are not hashed/encrypted
+              # default value is bcrypt
+              password-encoding-algo: bcrypt
+              users:
+                - user:
+                  username: user
+                  # Passwords are encoded using BCrypt
+                  # Password value: password
+                  password: $2a$10$9kjw/SH9gucCId3Lnt6EmuFreUAcXSZgpvAYuW2ISv7hSOhHRH1AO
+                  roles: MANAGEMENT:USER, PORTAL:USER
+                - user:
+                  username: admin
+                  # Password value: admin
+                  password: $2a$10$Ihk05VSds5rUSgMdsMVi9OKMIx2yUvMz7y9VP3rJmQeizZLrhLMyq
+                  roles: MANAGEMENT:ADMIN, PORTAL:ADMIN
+                - user:
+                  username: api1
+                  # Password value: api1
+                  password: $2a$10$iXdXO4wAYdhx2LOwijsp7.PsoAZQ05zEdHxbriIYCbtyo.y32LTji
+                  # You can declare multiple roles using comma separator
+                  roles: MANAGEMENT:API_PUBLISHER, PORTAL:API_PUBLISHER
+                - user:
+                  username: application1
+                  # Password value: application1
+                  password: $2a$10$2gtKPYRB9zaVaPcn5RBx/.3T.7SeZoDGs9GKqbo9G64fKyXFR1He.
+                  roles: MANAGEMENT:USER, PORTAL:USER
+            # Enable authentication using internal repository
+            - type: gravitee
+              # allow search results to display the user email. Be careful, It may be contrary to the user privacy.
+        #      allow-email-in-search-results: true
+            # Enable authentication using an LDAP/Active Directory
+        #    - type: ldap
+              # This is default LDAP configuration for ApacheDS
+        #      context:
+        #        username: "uid=admin,ou=system"
+        #        password: "secret"
+        #        url: "ldap://localhost:10389/c=io,o=gravitee"
+        #        base: "c=io,o=gravitee" # the context source base
+        #      authentication:
+        #        user:
+                  # Search base for user authentication. Defaults to "". Only used with user filter.
+                  # It should be relative to the Base DN. If the whole DN is o=user accounts,c=io,o=gravitee then the base should be like this:
+        #          base: "o=user accounts"
+                  # The LDAP filter used to search for user during authentication. For example "(uid={0})". The substituted parameter is the user's login name.
+        #          filter: "mail={0}"
+                  # Specifies the attribute name which contains the user photo (URL or binary)
+        #          photo-attribute: "jpegPhoto"
+        #        group:
+                  # Search base for groups searches. Defaults to "". Only used with group filter.
+                  # It should be relative to the Base DN. If the whole DN is o=authorization groups,c=io,o=gravitee then the base should be like this:
+        #          base: "o=authorization groups"
+        #          filter: "member={0}"
+        #          role:
+        #            attribute: "cn"
+        #            mapper: {
+        #              GRAVITEE-CONSUMERS: API_CONSUMER,
+        #              GRAVITEE-PUBLISHERS: API_PUBLISHER,
+        #              GRAVITEE-ADMINS: ADMIN,
+        #              GRAVITEE-USERS: USER
+        #            }
+        #      lookup:
+                # allow search results to display the user email. Be careful, It may be contrary to the user privacy.
+        #         allow-email-in-search-results: true
+        #        user:
+                  # Search base for user searches. Defaults to "". Only used with user filter.
+                  # It should be relative to the Base DN. If the whole DN is o=user accounts,c=io,o=gravitee then the base should be like this:
+        #          base: "o=user accounts"
+                  # The LDAP filter used to search for user during authentication. For example "(uid={0})". The substituted parameter is the user's login name.
+        #          filter: "(&(objectClass=Person)(|(cn=*{0}*)(uid={0})))"
+
+        # SMTP configuration used to send mails
+        email:
+          enabled: false
+          host: smtp.my.domain
+          subject: "[Gravitee.io] %s"
+          port: 587
+          from: noreply@my.domain
+          username: user@my.domain
+          password: password
+        #  properties:
+        #    auth: true
+        #    starttls.enable: true
+        #    ssl.trust: smtp.gmail.com
+
+        # Mail templates
+        #templates:
+        #  path: ${gravitee.home}/templates
+
+        # Referenced properties
+        ds:
+          mongodb:
+            dbname: gravitee
+            host: localhost
+            port: 27017
+          elastic:
+            host: localhost
+            port: 9200
+
+        jwt:
+          secret: myJWT4Gr4v1t33_S3cr3t
+          # Allows to define the end of validity of the token in seconds (default 604800 = a week)
+          #expire-after: 604800
+          # Allows to define the end of validity of the token in seconds for email registration (default 86400 = a day)
+          #email-registration-expire-after: 86400
+          # Allows to define issuer (default gravitee-management-auth)
+          #issuer: gravitee-management-auth
+          # Allows to define cookie context path (default /)
+          #cookie-path: /
+          # Allows to define cookie domain (default "")
+          #cookie-domain: .gravitee.io
+          # Allows to define if cookie secure only (default false)
+          #cookie-secure: true
+
+        swagger:
+          # Default scheme used when creating an API from a Swagger descriptor if there is no scheme specified.
+          scheme: https
+
+        user:
+          login:
+            # Create a default application when user connects to the portal for the very first time (default true)
+            #defaultApplication: true
+          creation:
+            token:
+              #expire-after: 86400
+          reference:
+              # Secret key used to generate reference of a user which is unique (default: s3cR3t4grAv1t33.1Ous3D4R3f3r3nc3)
+              # Must contains 32 chars (256 bits)
+              #secret:
+          anonymize-on-delete:
+            #enabled: true
+
+        # The portal URL used in emails
+        portalURL: http://localhost:3000/
+
+        search:
+          data: ${gravitee.home}/data
+
+        # global configuration of the http client
+        #httpClient:
+        #  timeout: 10000 # in milliseconds
+        #  proxy:
+        #    type: HTML #HTTP, SOCK4, SOCK5
+        #    http:
+        #      host: localhost
+        #      port: 3128
+        #      username: user
+        #      password: secret
+        #    https:
+        #      host: localhost
+        #      port: 3128
+        #      username: user
+        #      password: secret
+
+        notifiers:
+          email:
+            enabled: true
+            host: ${email.host}
+            subject: ${email.subject}
+            port: ${email.port}
+            from: ${email.from}
+            username: ${email.username}
+            password: ${email.password}
+        #    starttls.enabled: false
+        #    ssl:
+        #      trustAll: false
+        #      keyStore:
+        #      keyStorePassword:
+
+        # Gravitee Alert Engine is only available with support
+        alerts:
+          enabled: false
+          default:
+            enabled: false
+            # must be reachable by other nodes
+            cluster:
+              host: localhost
+              port: 0
+              hazelcast:
+                config:
+                  path: ${gravitee.home}/config/hazelcast.xml
+      logback.xml: |-
+        <?xml version="1.0" encoding="UTF-8"?>
+
+        <!--
+          ~ Copyright (c) 2015-2016, The Gravitee team (http://www.gravitee.io)
+          ~
+          ~  Licensed under the Apache License, Version 2.0 (the "License");
+          ~  you may not use this file except in compliance with the License.
+          ~  You may obtain a copy of the License at
+          ~
+          ~  http://www.apache.org/licenses/LICENSE-2.0
+          ~
+          ~  Unless required by applicable law or agreed to in writing, software
+          ~  distributed under the License is distributed on an "AS IS" BASIS,
+          ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+          ~  See the License for the specific language governing permissions and
+          ~  limitations under the License.
+          -->
+
+        <configuration>
+
+            <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+                <!-- encoders are assigned the type
+                    ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+                <encoder>
+                    <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+
+            <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <file>${gravitee.home}/logs/gravitee.log</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                    <!-- daily rollover -->
+                    <fileNamePattern>${gravitee.home}/logs/gravitee_%d{yyyy-MM-dd}.log</fileNamePattern>
+
+                    <!-- keep 30 days' worth of history -->
+                    <maxHistory>30</maxHistory>
+                </rollingPolicy>
+
+                <encoder>
+                    <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+
+            <logger name="io.gravitee" level="INFO" />
+            <logger name="org.eclipse.jetty" level="INFO" />
+
+            <!-- Strictly speaking, the level attribute is not necessary since -->
+            <!-- the level of the root level is set to DEBUG by default.       -->
+            <root level="WARN">
+                <appender-ref ref="STDOUT" />
+                <appender-ref ref="FILE" />
+            </root>
+
+        </configuration>
     kind: ConfigMap
     metadata:
-      name: gatewaya-config
+      name: management-api-config
 
 
 
@@ -894,13 +1171,13 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: gatewaya
+      name: management-api
     spec:
       replicas: 1
       revisionHistoryLimit: 10
       selector:
         app: gravitee-api-gateway
-        deploymentconfig: gatewaya
+        deploymentconfig: management-api
       strategy:
         activeDeadlineSeconds: 21600
         resources: {}
@@ -915,7 +1192,7 @@
         metadata:
           labels:
             app: gravitee-api-gateway
-            deploymentconfig: gatewaya
+            deploymentconfig: management-api
         spec:
           containers:
             - env:
@@ -923,11 +1200,11 @@
                   value: mongo
                 - name: WAITFOR_PORT
                   value: '27017'
-              image: "gatewaya:latest"
+              image: "management-api:latest"
               imagePullPolicy: Always
-              name: gatewaya
+              name: management-api
               ports:
-                - containerPort: 1337
+                - containerPort: 8083
                   protocol: TCP                                         
               livenessProbe:
                 failureThreshold: 3
@@ -935,7 +1212,7 @@
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
-                  port: 1337
+                  port: 8083
                   path: /
                 timeoutSeconds: 15
               readinessProbe:
@@ -944,7 +1221,7 @@
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
-                  port: 1337
+                  port: 8083
                   path: /
                 timeoutSeconds: 15
               resources:
@@ -954,26 +1231,26 @@
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
               volumeMounts:
-                - mountPath: /opt/gatewaya/custom_config
-                  name: gatewaya-config
+                - mountPath: /opt/management/config
+                  name: management-api-config
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
           terminationGracePeriodSeconds: 30
           volumes:
             - configMap:
-                name: gatewaya-config
-              name: gatewaya-config
+                name: management-api-config
+              name: management-api-config
       test: false
       triggers:
         - type: ConfigChange
         - imageChangeParams:
             automatic: true
             containerNames:
-              - gatewaya
+              - management-api
             from:
               kind: ImageStreamTag
-              name: "gatewaya:latest"
+              name: "management-api:latest"
           type: ImageChange
 
 
@@ -983,20 +1260,20 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-        build: gatewaya
-      name: gatewaya
+        build: management-api
+      name: management-api
     spec:
       failedBuildsHistoryLimit: 5
       nodeSelector: null
       output:
         to:
           kind: ImageStreamTag
-          name: 'gatewaya:latest'
+          name: 'management-api:latest'
       postCommit: {}
       resources: {}
       runPolicy: Serial
       source:
-        contextDir: gatewaya
+        contextDir: management-api
         git:
           ref: master
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
@@ -1017,16 +1294,16 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: gatewaya
+      name: management-api
     spec:
       ports:
         - name: http
-          port: 1337
+          port: 8083
           protocol: TCP
-          targetPort: 1337                            
+          targetPort: 8083                            
       selector:
         app: gravitee-api-gateway
-        deploymentconfig: gatewaya
+        deploymentconfig: management-api
       sessionAffinity: None
       type: ClusterIP
 
@@ -1037,585 +1314,26 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: gatewaya
+      name: management-api
     spec: {}
 
 
-########## FIN gatewaya
+### fin admin
 
-  - apiVersion: v1
-    data:
-      redis.conf: |-
-        ########## redis
-
-
-
-        # This file should be here /etc/redis
-        # Edit all lines with CUSTOM comment
-
-        # Redis configuration file example
-
-        # Note on units: when memory size is needed, it is possible to specify
-        # it in the usual form of 1k 5GB 4M and so forth:
-        #
-        # 1k => 1000 bytes
-        # 1kb => 1024 bytes
-        # 1m => 1000000 bytes
-        # 1mb => 1024*1024 bytes
-        # 1g => 1000000000 bytes
-        # 1gb => 1024*1024*1024 bytes
-        #
-        # units are case insensitive so 1GB 1Gb 1gB are all the same.
-
-        # By default Redis does not run as a daemon. Use 'yes' if you need it.
-        # Note that Redis will write a pid file in /var/run/redis.pid when daemonized.
-        daemonize no
-
-        # When running daemonized, Redis writes a pid file in /var/run/redis.pid by
-        # default. You can specify a custom pid file location here.
-        # CUSTOM
-        pidfile /opt/redis.pid
-
-        # Accept connections on the specified port, default is 6379.
-        # If port 0 is specified Redis will not listen on a TCP socket.
-        # CUSTOM
-        port 6379
-
-        # If you want you can bind a single interface, if the bind option is not
-        # specified all the interfaces will listen for incoming connections.
-        #
-        bind 0.0.0.0
-
-        # Specify the path for the unix socket that will be used to listen for
-        # incoming connections. There is no default, so Redis will not listen
-        # on a unix socket when not specified.
-        #
-        # unixsocket /var/run/redis/redis.sock
-        # unixsocketperm 755
-
-        # Close the connection after a client is idle for N seconds (0 to disable)
-        timeout 0
-
-        # Set server verbosity to 'debug'
-        # it can be one of:
-        # debug (a lot of information, useful for development/testing)
-        # verbose (many rarely useful info, but not a mess like the debug level)
-        # notice (moderately verbose, what you want in production probably)
-        # warning (only very important / critical messages are logged)
-        loglevel verbose
-
-        # Specify the log file name. Also 'stdout' can be used to force
-        # Redis to log on the standard output. Note that if you use standard
-        # output for logging but daemonize, logs will be sent to /dev/null
-        # CUSTOM
-        logfile /dev/stdout
-
-        # To enable logging to the system logger, just set 'syslog-enabled' to yes,
-        # and optionally update the other syslog parameters to suit your needs.
-        # syslog-enabled no
-
-        # Specify the syslog identity.
-        # syslog-ident redis
-
-        # Specify the syslog facility.  Must be USER or between LOCAL0-LOCAL7.
-        # syslog-facility local0
-
-        # Set the number of databases. The default database is DB 0, you can select
-        # a different one on a per-connection basis using SELECT <dbid> where
-        # dbid is a number between 0 and 'databases'-1
-        databases 16
-
-        ################################ SNAPSHOTTING  #################################
-        #
-        # Save the DB on disk:
-        #
-        #   save <seconds> <changes>
-        #
-        #   Will save the DB if both the given number of seconds and the given
-        #   number of write operations against the DB occurred.
-        #
-        #   In the example below the behaviour will be to save:
-        #   after 900 sec (15 min) if at least 1 key changed
-        #   after 300 sec (5 min) if at least 10 keys changed
-        #   after 60 sec if at least 10000 keys changed
-        #
-        #   Note: you can disable saving at all commenting all the "save" lines.
-        #
-        #   It is also possible to remove all the previously configured save
-        #   points by adding a save directive with a single empty string argument
-        #   like in the following example:
-        #
-        #   save ""
-
-        save 900 1
-        save 300 10
-        save 60 10000
-
-        # By default Redis will stop accepting writes if RDB snapshots are enabled
-        # (at least one save point) and the latest background save failed.
-        # This will make the user aware (in an hard way) that data is not persisting
-        # on disk properly, otherwise chances are that no one will notice and some
-        # distater will happen.
-        #
-        # If the background saving process will start working again Redis will
-        # automatically allow writes again.
-        #
-        # However if you have setup your proper monitoring of the Redis server
-        # and persistence, you may want to disable this feature so that Redis will
-        # continue to work as usually even if there are problems with disk,
-        # permissions, and so forth.
-        stop-writes-on-bgsave-error yes
-
-        # Compress string objects using LZF when dump .rdb databases?
-        # For default that's set to 'yes' as it's almost always a win.
-        # If you want to save some CPU in the saving child set it to 'no' but
-        # the dataset will likely be bigger if you have compressible values or keys.
-        rdbcompression yes
-
-        # Since verison 5 of RDB a CRC64 checksum is placed at the end of the file.
-        # This makes the format more resistant to corruption but there is a performance
-        # hit to pay (around 10%) when saving and loading RDB files, so you can disable it
-        # for maximum performances.
-        #
-        # RDB files created with checksum disabled have a checksum of zero that will
-        # tell the loading code to skip the check.
-        rdbchecksum yes
-
-        # The filename where to dump the DB
-        # CUSTOM
-        dbfilename dump-railstom-production.rdb
-
-        # The working directory.
-        #
-        # The DB will be written inside this directory, with the filename specified
-        # above using the 'dbfilename' configuration directive.
-        # 
-        # Also the Append Only File will be created inside this directory.
-        # 
-        # Note that you must specify a directory here, not a file name.
-        dir /opt/redis
-
-        ################################# REPLICATION #################################
-
-        # Master-Slave replication. Use slaveof to make a Redis instance a copy of
-        # another Redis server. Note that the configuration is local to the slave
-        # so for example it is possible to configure the slave to save the DB with a
-        # different interval, or to listen to another port, and so on.
-        #
-        # slaveof <masterip> <masterport>
-
-        # If the master is password protected (using the "requirepass" configuration
-        # directive below) it is possible to tell the slave to authenticate before
-        # starting the replication synchronization process, otherwise the master will
-        # refuse the slave request.
-        #
-        # masterauth <master-password>
-
-        # When a slave lost the connection with the master, or when the replication
-        # is still in progress, the slave can act in two different ways:
-        #
-        # 1) if slave-serve-stale-data is set to 'yes' (the default) the slave will
-        #    still reply to client requests, possibly with out of date data, or the
-        #    data set may just be empty if this is the first synchronization.
-        #
-        # 2) if slave-serve-stale data is set to 'no' the slave will reply with
-        #    an error "SYNC with master in progress" to all the kind of commands
-        #    but to INFO and SLAVEOF.
-        #
-        slave-serve-stale-data yes
-
-        # You can configure a slave instance to accept writes or not. Writing against
-        # a slave instance may be useful to store some ephemeral data (because data
-        # written on a slave will be easily deleted after resync with the master) but
-        # may also cause problems if clients are writing to it because of a
-        # misconfiguration.
-        #
-        # Since Redis 2.6 by default slaves are read-only.
-        #
-        # Note: read only slaves are not designed to be exposed to untrusted clients
-        # on the internet. It's just a protection layer against misuse of the instance.
-        # Still a read only slave exports by default all the administrative commands
-        # such as CONFIG, DEBUG, and so forth. To a limited extend you can improve
-        # security of read only slaves using 'rename-command' to shadow all the
-        # administrative / dangerous commands.
-        slave-read-only yes
-
-        # Slaves send PINGs to server in a predefined interval. It's possible to change
-        # this interval with the repl_ping_slave_period option. The default value is 10
-        # seconds.
-        #
-        # repl-ping-slave-period 10
-
-        # The following option sets a timeout for both Bulk transfer I/O timeout and
-        # master data or ping response timeout. The default value is 60 seconds.
-        #
-        # It is important to make sure that this value is greater than the value
-        # specified for repl-ping-slave-period otherwise a timeout will be detected
-        # every time there is low traffic between the master and the slave.
-        #
-        # repl-timeout 60
-
-        # The slave priority is an integer number published by Redis in the INFO output.
-        # It is used by Redis Sentinel in order to select a slave to promote into a
-        # master if the master is no longer working correctly.
-        #
-        # A slave with a low priority number is considered better for promotion, so
-        # for instance if there are three slaves with priority 10, 100, 25 Sentinel will
-        # pick the one wtih priority 10, that is the lowest.
-        #
-        # However a special priority of 0 marks the slave as not able to perform the
-        # role of master, so a slave with priority of 0 will never be selected by
-        # Redis Sentinel for promotion.
-        #
-        # By default the priority is 100.
-        slave-priority 100
-
-        ################################## SECURITY ###################################
-
-        # Require clients to issue AUTH <PASSWORD> before processing any other
-        # commands.  This might be useful in environments in which you do not trust
-        # others with access to the host running redis-server.
-        #
-        # This should stay commented out for backward compatibility and because most
-        # people do not need auth (e.g. they run their own servers).
-        # 
-        # Warning: since Redis is pretty fast an outside user can try up to
-        # 150k passwords per second against a good box. This means that you should
-        # use a very strong password otherwise it will be very easy to break.
-        #
-        # requirepass foobared
-
-        # Command renaming.
-        #
-        # It is possible to change the name of dangerous commands in a shared
-        # environment. For instance the CONFIG command may be renamed into something
-        # of hard to guess so that it will be still available for internal-use
-        # tools but not available for general clients.
-        #
-        # Example:
-        #
-        # rename-command CONFIG b840fc02d524045429941cc15f59e41cb7be6c52
-        #
-        # It is also possible to completely kill a command renaming it into
-        # an empty string:
-        #
-        # rename-command CONFIG ""
-
-        ################################### LIMITS ####################################
-
-        # Set the max number of connected clients at the same time. By default
-        # this limit is set to 10000 clients, however if the Redis server is not
-        # able ot configure the process file limit to allow for the specified limit
-        # the max number of allowed clients is set to the current file limit
-        # minus 32 (as Redis reserves a few file descriptors for internal uses).
-        #
-        # Once the limit is reached Redis will close all the new connections sending
-        # an error 'max number of clients reached'.
-        #
-        # maxclients 10000
-
-        # Don't use more memory than the specified amount of bytes.
-        # When the memory limit is reached Redis will try to remove keys
-        # accordingly to the eviction policy selected (see maxmemmory-policy).
-        #
-        # If Redis can't remove keys according to the policy, or if the policy is
-        # set to 'noeviction', Redis will start to reply with errors to commands
-        # that would use more memory, like SET, LPUSH, and so on, and will continue
-        # to reply to read-only commands like GET.
-        #
-        # This option is usually useful when using Redis as an LRU cache, or to set
-        # an hard memory limit for an instance (using the 'noeviction' policy).
-        #
-        # WARNING: If you have slaves attached to an instance with maxmemory on,
-        # the size of the output buffers needed to feed the slaves are subtracted
-        # from the used memory count, so that network problems / resyncs will
-        # not trigger a loop where keys are evicted, and in turn the output
-        # buffer of slaves is full with DELs of keys evicted triggering the deletion
-        # of more keys, and so forth until the database is completely emptied.
-        #
-        # In short... if you have slaves attached it is suggested that you set a lower
-        # limit for maxmemory so that there is some free RAM on the system for slave
-        # output buffers (but this is not needed if the policy is 'noeviction').
-        #
-        # maxmemory <bytes>
-
-        # MAXMEMORY POLICY: how Redis will select what to remove when maxmemory
-        # is reached? You can select among five behavior:
-        # 
-        # volatile-lru -> remove the key with an expire set using an LRU algorithm
-        # allkeys-lru -> remove any key accordingly to the LRU algorithm
-        # volatile-random -> remove a random key with an expire set
-        # allkeys-random -> remove a random key, any key
-        # volatile-ttl -> remove the key with the nearest expire time (minor TTL)
-        # noeviction -> don't expire at all, just return an error on write operations
-        # 
-        # Note: with all the kind of policies, Redis will return an error on write
-        #       operations, when there are not suitable keys for eviction.
-        #
-        #       At the date of writing this commands are: set setnx setex append
-        #       incr decr rpush lpush rpushx lpushx linsert lset rpoplpush sadd
-        #       sinter sinterstore sunion sunionstore sdiff sdiffstore zadd zincrby
-        #       zunionstore zinterstore hset hsetnx hmset hincrby incrby decrby
-        #       getset mset msetnx exec sort
-        #
-        # The default is:
-        #
-        # maxmemory-policy volatile-lru
-
-        # LRU and minimal TTL algorithms are not precise algorithms but approximated
-        # algorithms (in order to save memory), so you can select as well the sample
-        # size to check. For instance for default Redis will check three keys and
-        # pick the one that was used less recently, you can change the sample size
-        # using the following configuration directive.
-        #
-        # maxmemory-samples 3
-
-        ############################## APPEND ONLY MODE ###############################
-
-        # By default Redis asynchronously dumps the dataset on disk. This mode is
-        # good enough in many applications, but an issue with the Redis process or
-        # a power outage may result into a few minutes of writes lost (depending on
-        # the configured save points).
-        #
-        # The Append Only File is an alternative persistence mode that provides
-        # much better durability. For instance using the default data fsync policy
-        # (see later in the config file) Redis can lose just one second of writes in a
-        # dramatic event like a server power outage, or a single write if something
-        # wrong with the Redis process itself happens, but the operating system is
-        # still running correctly.
-        #
-        # AOF and RDB persistence can be enabled at the same time without problems.
-        # If the AOF is enabled on startup Redis will load the AOF, that is the file
-        # with the better durability guarantees.
-        #
-        # Please check http://redis.io/topics/persistence for more information.
-
-        appendonly no
-
-        # The name of the append only file (default: "appendonly.aof")
-        # appendfilename appendonly.aof
-
-        # The fsync() call tells the Operating System to actually write data on disk
-        # instead to wait for more data in the output buffer. Some OS will really flush 
-        # data on disk, some other OS will just try to do it ASAP.
-        #
-        # Redis supports three different modes:
-        #
-        # no: don't fsync, just let the OS flush the data when it wants. Faster.
-        # always: fsync after every write to the append only log . Slow, Safest.
-        # everysec: fsync only one time every second. Compromise.
-        #
-        # The default is "everysec" that's usually the right compromise between
-        # speed and data safety. It's up to you to understand if you can relax this to
-        # "no" that will let the operating system flush the output buffer when
-        # it wants, for better performances (but if you can live with the idea of
-        # some data loss consider the default persistence mode that's snapshotting),
-        # or on the contrary, use "always" that's very slow but a bit safer than
-        # everysec.
-        #
-        # More details please check the following article:
-        # http://antirez.com/post/redis-persistence-demystified.html
-        #
-        # If unsure, use "everysec".
-
-        # appendfsync always
-        appendfsync everysec
-        # appendfsync no
-
-        # When the AOF fsync policy is set to always or everysec, and a background
-        # saving process (a background save or AOF log background rewriting) is
-        # performing a lot of I/O against the disk, in some Linux configurations
-        # Redis may block too long on the fsync() call. Note that there is no fix for
-        # this currently, as even performing fsync in a different thread will block
-        # our synchronous write(2) call.
-        #
-        # In order to mitigate this problem it's possible to use the following option
-        # that will prevent fsync() from being called in the main process while a
-        # BGSAVE or BGREWRITEAOF is in progress.
-        #
-        # This means that while another child is saving the durability of Redis is
-        # the same as "appendfsync none", that in practical terms means that it is
-        # possible to lost up to 30 seconds of log in the worst scenario (with the
-        # default Linux settings).
-        # 
-        # If you have latency problems turn this to "yes". Otherwise leave it as
-        # "no" that is the safest pick from the point of view of durability.
-        no-appendfsync-on-rewrite no
-
-        # Automatic rewrite of the append only file.
-        # Redis is able to automatically rewrite the log file implicitly calling
-        # BGREWRITEAOF when the AOF log size will growth by the specified percentage.
-        # 
-        # This is how it works: Redis remembers the size of the AOF file after the
-        # latest rewrite (or if no rewrite happened since the restart, the size of
-        # the AOF at startup is used).
-        #
-        # This base size is compared to the current size. If the current size is
-        # bigger than the specified percentage, the rewrite is triggered. Also
-        # you need to specify a minimal size for the AOF file to be rewritten, this
-        # is useful to avoid rewriting the AOF file even if the percentage increase
-        # is reached but it is still pretty small.
-        #
-        # Specify a percentage of zero in order to disable the automatic AOF
-        # rewrite feature.
-
-        auto-aof-rewrite-percentage 100
-        auto-aof-rewrite-min-size 64mb
-
-        ################################ LUA SCRIPTING  ###############################
-
-        # Max execution time of a Lua script in milliseconds.
-        #
-        # If the maximum execution time is reached Redis will log that a script is
-        # still in execution after the maximum allowed time and will start to
-        # reply to queries with an error.
-        #
-        # When a long running script exceed the maximum execution time only the
-        # SCRIPT KILL and SHUTDOWN NOSAVE commands are available. The first can be
-        # used to stop a script that did not yet called write commands. The second
-        # is the only way to shut down the server in the case a write commands was
-        # already issue by the script but the user don't want to wait for the natural
-        # termination of the script.
-        #
-        # Set it to 0 or a negative value for unlimited execution without warnings.
-        lua-time-limit 5000
-
-        ################################## SLOW LOG ###################################
-
-        # The Redis Slow Log is a system to log queries that exceeded a specified
-        # execution time. The execution time does not include the I/O operations
-        # like talking with the client, sending the reply and so forth,
-        # but just the time needed to actually execute the command (this is the only
-        # stage of command execution where the thread is blocked and can not serve
-        # other requests in the meantime).
-        # 
-        # You can configure the slow log with two parameters: one tells Redis
-        # what is the execution time, in microseconds, to exceed in order for the
-        # command to get logged, and the other parameter is the length of the
-        # slow log. When a new command is logged the oldest one is removed from the
-        # queue of logged commands.
-
-        # The following time is expressed in microseconds, so 1000000 is equivalent
-        # to one second. Note that a negative number disables the slow log, while
-        # a value of zero forces the logging of every command.
-        slowlog-log-slower-than 10000
-
-        # There is no limit to this length. Just be aware that it will consume memory.
-        # You can reclaim memory used by the slow log with SLOWLOG RESET.
-        slowlog-max-len 128
-
-        ############################### ADVANCED CONFIG ###############################
-
-        # Hashes are encoded using a memory efficient data structure when they have a
-        # small number of entries, and the biggest entry does not exceed a given
-        # threshold. These thresholds can be configured using the following directives.
-        hash-max-ziplist-entries 512
-        hash-max-ziplist-value 64
-
-        # Similarly to hashes, small lists are also encoded in a special way in order
-        # to save a lot of space. The special representation is only used when
-        # you are under the following limits:
-        list-max-ziplist-entries 512
-        list-max-ziplist-value 64
-
-        # Sets have a special encoding in just one case: when a set is composed
-        # of just strings that happens to be integers in radix 10 in the range
-        # of 64 bit signed integers.
-        # The following configuration setting sets the limit in the size of the
-        # set in order to use this special memory saving encoding.
-        set-max-intset-entries 512
-
-        # Similarly to hashes and lists, sorted sets are also specially encoded in
-        # order to save a lot of space. This encoding is only used when the length and
-        # elements of a sorted set are below the following limits:
-        zset-max-ziplist-entries 128
-        zset-max-ziplist-value 64
-
-        # Active rehashing uses 1 millisecond every 100 milliseconds of CPU time in
-        # order to help rehashing the main Redis hash table (the one mapping top-level
-        # keys to values). The hash table implementation Redis uses (see dict.c)
-        # performs a lazy rehashing: the more operation you run into an hash table
-        # that is rehashing, the more rehashing "steps" are performed, so if the
-        # server is idle the rehashing is never complete and some more memory is used
-        # by the hash table.
-        # 
-        # The default is to use this millisecond 10 times every second in order to
-        # active rehashing the main dictionaries, freeing memory when possible.
-        #
-        # If unsure:
-        # use "activerehashing no" if you have hard latency requirements and it is
-        # not a good thing in your environment that Redis can reply form time to time
-        # to queries with 2 milliseconds delay.
-        #
-        # use "activerehashing yes" if you don't have such hard requirements but
-        # want to free memory asap when possible.
-        activerehashing yes
-
-        # The client output buffer limits can be used to force disconnection of clients
-        # that are not reading data from the server fast enough for some reason (a
-        # common reason is that a Pub/Sub client can't consume messages as fast as the
-        # publisher can produce them).
-        #
-        # The limit can be set differently for the three different classes of clients:
-        #
-        # normal -> normal clients
-        # slave  -> slave clients and MONITOR clients
-        # pubsub -> clients subcribed to at least one pubsub channel or pattern
-        #
-        # The syntax of every client-output-buffer-limit directive is the following:
-        #
-        # client-output-buffer-limit <class> <hard limit> <soft limit> <soft seconds>
-        #
-        # A client is immediately disconnected once the hard limit is reached, or if
-        # the soft limit is reached and remains reached for the specified number of
-        # seconds (continuously).
-        # So for instance if the hard limit is 32 megabytes and the soft limit is
-        # 16 megabytes / 10 seconds, the client will get disconnected immediately
-        # if the size of the output buffers reach 32 megabytes, but will also get
-        # disconnected if the client reaches 16 megabytes and continuously overcomes
-        # the limit for 10 seconds.
-        #
-        # By default normal clients are not limited because they don't receive data
-        # without asking (in a push way), but just after a request, so only
-        # asynchronous clients may create a scenario where data is requested faster
-        # than it can read.
-        #
-        # Instead there is a default limit for pubsub and slave clients, since
-        # subscribers and slaves receive data in a push fashion.
-        #
-        # Both the hard or the soft limit can be disabled just setting it to zero.
-        client-output-buffer-limit normal 0 0 0
-        client-output-buffer-limit slave 256mb 64mb 60
-        client-output-buffer-limit pubsub 32mb 8mb 60
-
-        ################################## INCLUDES ###################################
-
-        # Include one or more other config files here.  This is useful if you
-        # have a standard template that goes to all Redis server but also need
-        # to customize a few per-server settings.  Include files can include
-        # other files, so use this wisely.
-        #
-        # include /path/to/local.conf
-        # include /path/to/other.conf
-    kind: ConfigMap
-    metadata:
-      name: redis-config        
-
-
-
+### start portal
 
   - apiVersion: v1
     kind: DeploymentConfig
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: redis
+      name: management-ui
     spec:
       replicas: 1
       revisionHistoryLimit: 10
       selector:
         app: gravitee-api-gateway
-        deploymentconfig: redis
+        deploymentconfig: management-ui
       strategy:
         activeDeadlineSeconds: 21600
         resources: {}
@@ -1630,62 +1348,39 @@
         metadata:
           labels:
             app: gravitee-api-gateway
-            deploymentconfig: redis
+            deploymentconfig: management-ui
         spec:
           containers:
-            - image: "redis:latest"
+            - image: "management-ui:latest"
               imagePullPolicy: Always
-              name: redis
+              name: management-ui
               ports:
                 - containerPort: 6379
                   protocol: TCP
               resources:
                 limits:
                   cpu: 500m
-                  memory: 128Mi
+                  memory: 256Mi
               livenessProbe:
-                exec:
-                  command:
-                  - sh
-                  - "-c"
-                  - |
-                    nc -z -v -w5 127.0.0.1 6379
-                    if [ "$?" == 0 ]; then
-                    exit 0
-                    else
-                    exit 1
-                    fi
-                initialDelaySeconds: 90
-                timeoutSeconds: 5
+                failureThreshold: 3
+                initialDelaySeconds: 60
+                periodSeconds: 20
+                successThreshold: 1
+                httpGet:
+                  port: 8080
+                  path: /
+                timeoutSeconds: 15
               readinessProbe:
-                exec:
-                  command:
-                  - sh
-                  - "-c"
-                  - |
-                    nc -z -v -w5 127.0.0.1 6379
-                    if [ "$?" == 0 ]; then
-                    exit 0
-                    else
-                    exit 1
-                    fi
-                initialDelaySeconds: 30
-                timeoutSeconds: 15                  
+                failureThreshold: 3
+                initialDelaySeconds: 60
+                periodSeconds: 20
+                successThreshold: 1
+                httpGet:
+                  port: 8080
+                  path: /
+                timeoutSeconds: 15                             
               terminationMessagePath: /dev/termination-log
-              terminationMessagePolicy: File
-              volumeMounts:
-              - name: redis
-                mountPath: /opt/redis
-                subPath: redis
-              - name: redis-config
-                mountPath: /opt/redis-config               
-          volumes:
-            - name: redis
-              persistentVolumeClaim:
-                claimName: gateway-api-gateway-data
-            - configMap:
-                name: redis-config
-              name: redis-config                        
+              terminationMessagePolicy: File                                 
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
@@ -1696,10 +1391,10 @@
         - imageChangeParams:
             automatic: true
             containerNames:
-              - redis
+              - management-ui
             from:
               kind: ImageStreamTag
-              name: "redis:latest"
+              name: "management-ui:latest"
           type: ImageChange
 
 
@@ -1708,16 +1403,16 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: redis
+      name: management-ui
     spec:
       ports:
         - name: http
-          port: 6379
+          port: 8080
           protocol: TCP
-          targetPort: 6379
+          targetPort: 8080
       selector:
         app: gravitee-api-gateway
-        deploymentconfig: redis
+        deploymentconfig: management-ui
       sessionAffinity: None
       type: ClusterIP
 
@@ -1727,20 +1422,20 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-        build: redis
-      name: redis
+        build: management-ui
+      name: management-ui
     spec:
       failedBuildsHistoryLimit: 5
       nodeSelector: null
       output:
         to:
           kind: ImageStreamTag
-          name: 'redis:latest'
+          name: 'management-ui:latest'
       postCommit: {}
       resources: {}
       runPolicy: Serial
       source:
-        contextDir: redis
+        contextDir: management-ui
         git:
           ref: master
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
@@ -1758,98 +1453,55 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: redis
+      name: management-ui
     spec: {}
 
-### INICIO PROMETHEUS
 
 
-  - apiVersion: v1
-    data:
-      prometheus.yml: |-
-        # my global config
-        global:
-          scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
-          evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
-          # scrape_timeout is set to the global default (10s).
+    ### elasticsearch
 
-        # Alertmanager configuration
-        alerting:
-          alertmanagers:
-          - static_configs:
-            - targets:
-              # - alertmanager:9093
 
-        # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
-        rule_files:
-          # - "first_rules.yml"
-          # - "second_rules.yml"
-
-        # A scrape configuration containing exactly one endpoint to scrape:
-        # Here it's Prometheus itself.
-        scrape_configs:
-          # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
-          - job_name: 'prometheus'
-
-            # metrics_path defaults to '/metrics'
-            # scheme defaults to 'http'.
-
-            static_configs:
-            - targets: ['localhost:9090']
-    kind: ConfigMap
-    metadata:
-      name: prometheus-config
-      
-      
-
-## FIN PROMETHEUS
-
+### COMIENZO elasticsearch
   - apiVersion: v1
     kind: DeploymentConfig
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: prometheus
+      name: elasticsearch
     spec:
       replicas: 1
-      revisionHistoryLimit: 10
       selector:
         app: gravitee-api-gateway
-        deploymentconfig: prometheus
+        deploymentconfig: elasticsearch
       strategy:
         activeDeadlineSeconds: 21600
         resources: {}
-        rollingParams:
-          intervalSeconds: 1
-          maxSurge: 25%
-          maxUnavailable: 25%
-          timeoutSeconds: 600
-          updatePeriodSeconds: 1
-        type: Rolling
+        type: Recreate
       template:
         metadata:
           labels:
             app: gravitee-api-gateway
-            deploymentconfig: prometheus
+            deploymentconfig: elasticsearch
         spec:
           containers:
-            - image: "prometheus:latest"
+            - env:
+                - name: discovery.type
+                  value: single-node
+              image: elasticsearch:7.4.2
               imagePullPolicy: Always
-              name: prometheus
+              name: elasticsearch
               ports:
-                - containerPort: 9090
+                - containerPort: 9200
                   protocol: TCP
-              resources:
-                limits:
-                  cpu: 500m
-                  memory: 128Mi
+                - containerPort: 9300
+                  protocol: TCP                  
               livenessProbe:
                 exec:
                   command:
-                  - sh
+                  - bash
                   - "-c"
                   - |
-                    nc -z -v -w5 127.0.0.1 9090
+                    nc -z -v -w5 127.0.0.1 9200
                     if [ "$?" == 0 ]; then
                     exit 0
                     else
@@ -1860,905 +1512,47 @@
               readinessProbe:
                 exec:
                   command:
-                  - sh
+                  - bash
                   - "-c"
                   - |
-                    nc -z -v -w5 127.0.0.1 9090
+                    nc -z -v -w5 127.0.0.1 9200
                     if [ "$?" == 0 ]; then
                     exit 0
                     else
                     exit 1
                     fi
                 initialDelaySeconds: 30
-                timeoutSeconds: 15                  
-              terminationMessagePath: /dev/termination-log
-              terminationMessagePolicy: File
-              volumeMounts:
-              - name: prometheus
-                mountPath: /opt/prometheus-data
-                subPath: prometheus
-              - name: prometheus-config
-                mountPath: /opt/prometheus-config               
-          volumes:
-            - name: prometheus
-              persistentVolumeClaim:
-                claimName: gateway-api-gateway-data
-            - configMap:
-                name: prometheus-config
-              name: prometheus-config                        
-          dnsPolicy: ClusterFirst
-          restartPolicy: Always
-          schedulerName: default-scheduler
-          terminationGracePeriodSeconds: 30
-      test: false
-      triggers:
-        - type: ConfigChange
-        - imageChangeParams:
-            automatic: true
-            containerNames:
-              - prometheus
-            from:
-              kind: ImageStreamTag
-              name: "prometheus:latest"
-          type: ImageChange
-
-
-  - apiVersion: v1
-    kind: Service
-    metadata:
-      labels:
-        app: gravitee-api-gateway
-      name: prometheus
-    spec:
-      ports:
-        - name: http
-          port: 9090
-          protocol: TCP
-          targetPort: 9090
-      selector:
-        app: gravitee-api-gateway
-        deploymentconfig: prometheus
-      sessionAffinity: None
-      type: ClusterIP
-
-
-  - apiVersion: v1
-    kind: BuildConfig
-    metadata:
-      labels:
-        app: gravitee-api-gateway
-        build: prometheus
-      name: prometheus
-    spec:
-      failedBuildsHistoryLimit: 5
-      nodeSelector: null
-      output:
-        to:
-          kind: ImageStreamTag
-          name: 'prometheus:latest'
-      postCommit: {}
-      resources: {}
-      runPolicy: Serial
-      source:
-        contextDir: prometheus
-        git:
-          ref: master
-          uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
-        type: Git
-      strategy:
-        dockerStrategy:
-          dockerfilePath: Dockerfile
-        type: Docker
-      successfulBuildsHistoryLimit: 5
-      triggers:
-        - type: ConfigChange
-
-  - apiVersion: v1
-    kind: ImageStream
-    metadata:
-      labels:
-        app: gravitee-api-gateway
-      name: prometheus
-    spec: {}
-
-
-  - apiVersion: v1
-    data:
-      grafana.ini: |-
-        # Everything has defaults so you only need to uncomment things you want to
-        # change
-
-        # possible values : production, development
-        app_mode = production
-
-        # instance name, defaults to HOSTNAME environment variable value or hostname if HOSTNAME var is empty
-        instance_name = ${HOSTNAME}
-
-        #################################### Paths ####################################
-        [paths]
-        # Path to where grafana can store temp files, sessions, and the sqlite3 db (if that is used)
-        data = /opt/grafana-data/data
-
-        # Temporary files in `data` directory older than given duration will be removed
-        ;temp_data_lifetime = 24h
-
-        # Directory where grafana can store logs
-        ;logs = /var/log/grafana
-
-        # Directory where grafana will automatically scan and look for plugins
-        plugins = /opt/grafana-data/plugins
-
-        # folder that contains provisioning config files that grafana will apply on startup and while running.
-        provisioning = /opt/grafana/provisioning
-
-        #################################### Server ####################################
-        [server]
-        # Protocol (http, https, h2, socket)
-        protocol = http
-
-        # The ip address to bind to, empty will bind to all interfaces
-        ;http_addr =
-
-        # The http port  to use
-        http_port = 3000
-
-        # The public facing domain name used to access grafana from a browser
-        ;domain = localhost
-
-        # Redirect to correct domain if host header does not match domain
-        # Prevents DNS rebinding attacks
-        ;enforce_domain = false
-
-        # The full public facing url you use in browser, used for redirects and emails
-        # If you use reverse proxy and sub path specify full url (with sub path)
-        ;root_url = http://localhost:3000
-
-        # Serve Grafana from subpath specified in `root_url` setting. By default it is set to `false` for compatibility reasons.
-        ;serve_from_sub_path = false
-
-        # Log web requests
-        ;router_logging = false
-
-        # the path relative working path
-        ;static_root_path = public
-
-        # enable gzip
-        ;enable_gzip = false
-
-        # https certs & key file
-        ;cert_file =
-        ;cert_key =
-
-        # Unix socket path
-        ;socket =
-
-        #################################### Database ####################################
-        [database]
-        # You can configure the database connection by specifying type, host, name, user and password
-        # as separate properties or as on string using the url properties.
-
-        # Either "mysql", "postgres" or "sqlite3", it's your choice
-        ;type = sqlite3
-        ;host = 127.0.0.1:3306
-        ;name = grafana
-        ;user = root
-        # If the password contains # or ; you have to wrap it with triple quotes. Ex """#password;"""
-        ;password =
-
-        # Use either URL or the previous fields to configure the database
-        # Example: mysql://user:secret@host:port/database
-        ;url =
-
-        # For "postgres" only, either "disable", "require" or "verify-full"
-        ;ssl_mode = disable
-
-        # For "sqlite3" only, path relative to data_path setting
-        ;path = grafana.db
-
-        # Max idle conn setting default is 2
-        ;max_idle_conn = 2
-
-        # Max conn setting default is 0 (mean not set)
-        ;max_open_conn =
-
-        # Connection Max Lifetime default is 14400 (means 14400 seconds or 4 hours)
-        ;conn_max_lifetime = 14400
-
-        # Set to true to log the sql calls and execution times.
-        ;log_queries =
-
-        # For "sqlite3" only. cache mode setting used for connecting to the database. (private, shared)
-        ;cache_mode = private
-
-        #################################### Cache server #############################
-        [remote_cache]
-        # Either "redis", "memcached" or "database" default is "database"
-        ;type = database
-
-        # cache connectionstring options
-        # database: will use Grafana primary database.
-        # redis: config like redis server e.g. `addr=127.0.0.1:6379,pool_size=100,db=0,ssl=false`. Only addr is required. ssl may be 'true', 'false', or 'insecure'.
-        # memcache: 127.0.0.1:11211
-        ;connstr =
-
-        #################################### Data proxy ###########################
-        [dataproxy]
-
-        # This enables data proxy logging, default is false
-        ;logging = false
-
-        # How long the data proxy should wait before timing out default is 30 (seconds)
-        ;timeout = 30
-
-        # If enabled and user is not anonymous, data proxy will add X-Grafana-User header with username into the request, default is false.
-        ;send_user_header = false
-
-        #################################### Analytics ####################################
-        [analytics]
-        # Server reporting, sends usage counters to stats.grafana.org every 24 hours.
-        # No ip addresses are being tracked, only simple counters to track
-        # running instances, dashboard and error counts. It is very helpful to us.
-        # Change this option to false to disable reporting.
-        ;reporting_enabled = true
-
-        # Set to false to disable all checks to https://grafana.net
-        # for new vesions (grafana itself and plugins), check is used
-        # in some UI views to notify that grafana or plugin update exists
-        # This option does not cause any auto updates, nor send any information
-        # only a GET request to http://grafana.com to get latest versions
-        ;check_for_updates = true
-
-        # Google Analytics universal tracking code, only enabled if you specify an id here
-        ;google_analytics_ua_id =
-
-        # Google Tag Manager ID, only enabled if you specify an id here
-        ;google_tag_manager_id =
-
-        #################################### Security ####################################
-        [security]
-        # default admin user, created on startup
-        ;admin_user = admin
-
-        # default admin password, can be changed before first start of grafana,  or in profile settings
-        ;admin_password = admin
-
-        # used for signing
-        ;secret_key = SW2YcwTIb9zpOOhoPsMm
-
-        # disable gravatar profile images
-        ;disable_gravatar = false
-
-        # data source proxy whitelist (ip_or_domain:port separated by spaces)
-        ;data_source_proxy_whitelist =
-
-        # disable protection against brute force login attempts
-        ;disable_brute_force_login_protection = false
-
-        # set to true if you host Grafana behind HTTPS. default is false.
-        ;cookie_secure = false
-
-        # set cookie SameSite attribute. defaults to `lax`. can be set to "lax", "strict" and "none"
-        ;cookie_samesite = lax
-
-        # set to true if you want to allow browsers to render Grafana in a <frame>, <iframe>, <embed> or <object>. default is false.
-        ;allow_embedding = false
-
-        # Set to true if you want to enable http strict transport security (HSTS) response header.
-        # This is only sent when HTTPS is enabled in this configuration.
-        # HSTS tells browsers that the site should only be accessed using HTTPS.
-        # The default version will change to true in the next minor release, 6.3.
-        ;strict_transport_security = false
-
-        # Sets how long a browser should cache HSTS. Only applied if strict_transport_security is enabled.
-        ;strict_transport_security_max_age_seconds = 86400
-
-        # Set to true if to enable HSTS preloading option. Only applied if strict_transport_security is enabled.
-        ;strict_transport_security_preload = false
-
-        # Set to true if to enable the HSTS includeSubDomains option. Only applied if strict_transport_security is enabled.
-        ;strict_transport_security_subdomains = false
-
-        # Set to true to enable the X-Content-Type-Options response header.
-        # The X-Content-Type-Options response HTTP header is a marker used by the server to indicate that the MIME types advertised
-        # in the Content-Type headers should not be changed and be followed. The default will change to true in the next minor release, 6.3.
-        ;x_content_type_options = false
-
-        # Set to true to enable the X-XSS-Protection header, which tells browsers to stop pages from loading
-        # when they detect reflected cross-site scripting (XSS) attacks. The default will change to true in the next minor release, 6.3.
-        ;x_xss_protection = false
-
-        #################################### Snapshots ###########################
-        [snapshots]
-        # snapshot sharing options
-        ;external_enabled = true
-        ;external_snapshot_url = https://snapshots-origin.raintank.io
-        ;external_snapshot_name = Publish to snapshot.raintank.io
-
-        # Set to true to enable this Grafana instance act as an external snapshot server and allow unauthenticated requests for
-        # creating and deleting snapshots.
-        ;public_mode = false
-
-        # remove expired snapshot
-        ;snapshot_remove_expired = true
-
-        #################################### Dashboards History ##################
-        [dashboards]
-        # Number dashboard versions to keep (per dashboard). Default: 20, Minimum: 1
-        ;versions_to_keep = 20
-
-        #################################### Users ###############################
-        [users]
-        # disable user signup / registration
-        ;allow_sign_up = true
-
-        # Allow non admin users to create organizations
-        ;allow_org_create = true
-
-        # Set to true to automatically assign new users to the default organization (id 1)
-        ;auto_assign_org = true
-
-        # Default role new users will be automatically assigned (if disabled above is set to true)
-        ;auto_assign_org_role = Viewer
-
-        # Background text for the user field on the login page
-        ;login_hint = email or username
-        ;password_hint = password
-
-        # Default UI theme ("dark" or "light")
-        ;default_theme = dark
-
-        # External user management, these options affect the organization users view
-        ;external_manage_link_url =
-        ;external_manage_link_name =
-        ;external_manage_info =
-
-        # Viewers can edit/inspect dashboard settings in the browser. But not save the dashboard.
-        ;viewers_can_edit = false
-
-        # Editors can administrate dashboard, folders and teams they create
-        ;editors_can_admin = false
-
-        [auth]
-        # Login cookie name
-        ;login_cookie_name = grafana_session
-
-        # The lifetime (days) an authenticated user can be inactive before being required to login at next visit. Default is 7 days,
-        ;login_maximum_inactive_lifetime_days = 7
-
-        # The maximum lifetime (days) an authenticated user can be logged in since login time before being required to login. Default is 30 days.
-        ;login_maximum_lifetime_days = 30
-
-        # How often should auth tokens be rotated for authenticated users when being active. The default is each 10 minutes.
-        ;token_rotation_interval_minutes = 10
-
-        # Set to true to disable (hide) the login form, useful if you use OAuth, defaults to false
-        ;disable_login_form = false
-
-        # Set to true to disable the signout link in the side menu. useful if you use auth.proxy, defaults to false
-        ;disable_signout_menu = false
-
-        # URL to redirect the user to after sign out
-        ;signout_redirect_url =
-
-        # Set to true to attempt login with OAuth automatically, skipping the login screen.
-        # This setting is ignored if multiple OAuth providers are configured.
-        ;oauth_auto_login = false
-
-        #################################### Anonymous Auth ######################
-        [auth.anonymous]
-        # enable anonymous access
-        ;enabled = false
-
-        # specify organization name that should be used for unauthenticated users
-        ;org_name = Main Org.
-
-        # specify role for unauthenticated users
-        ;org_role = Viewer
-
-        #################################### Github Auth ##########################
-        [auth.github]
-        ;enabled = false
-        ;allow_sign_up = true
-        ;client_id = some_id
-        ;client_secret = some_secret
-        ;scopes = user:email,read:org
-        ;auth_url = https://github.com/login/oauth/authorize
-        ;token_url = https://github.com/login/oauth/access_token
-        ;api_url = https://api.github.com/user
-        ;team_ids =
-        ;allowed_organizations =
-
-        #################################### Google Auth ##########################
-        [auth.google]
-        ;enabled = false
-        ;allow_sign_up = true
-        ;client_id = some_client_id
-        ;client_secret = some_client_secret
-        ;scopes = https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email
-        ;auth_url = https://accounts.google.com/o/oauth2/auth
-        ;token_url = https://accounts.google.com/o/oauth2/token
-        ;api_url = https://www.googleapis.com/oauth2/v1/userinfo
-        ;allowed_domains =
-
-        #################################### Generic OAuth ##########################
-        [auth.generic_oauth]
-        ;enabled = false
-        ;name = OAuth
-        ;allow_sign_up = true
-        ;client_id = some_id
-        ;client_secret = some_secret
-        ;scopes = user:email,read:org
-        ;email_attribute_name = email:primary
-        ;email_attribute_path =
-        ;auth_url = https://foo.bar/login/oauth/authorize
-        ;token_url = https://foo.bar/login/oauth/access_token
-        ;api_url = https://foo.bar/user
-        ;team_ids =
-        ;allowed_organizations =
-        ;tls_skip_verify_insecure = false
-        ;tls_client_cert =
-        ;tls_client_key =
-        ;tls_client_ca =
-
-        ; Set to true to enable sending client_id and client_secret via POST body instead of Basic authentication HTTP header
-        ; This might be required if the OAuth provider is not RFC6749 compliant, only supporting credentials passed via POST payload
-        ;send_client_credentials_via_post = false
-
-        #################################### SAML Auth ###########################
-        [auth.saml] # Enterprise only
-        # Defaults to false. If true, the feature is enabled.
-        ;enabled = false
-
-        # Base64-encoded public X.509 certificate. Used to sign requests to the IdP
-        ;certificate =
-
-        # Path to the public X.509 certificate. Used to sign requests to the IdP
-        ;certificate_path =
-
-        # Base64-encoded private key. Used to decrypt assertions from the IdP
-        ;private_key =
-
-        ;# Path to the private key. Used to decrypt assertions from the IdP
-        ;private_key_path =
-
-        # Base64-encoded IdP SAML metadata XML. Used to verify and obtain binding locations from the IdP
-        ;idp_metadata =
-
-        # Path to the SAML metadata XML. Used to verify and obtain binding locations from the IdP
-        ;idp_metadata_path =
-
-        # URL to fetch SAML IdP metadata. Used to verify and obtain binding locations from the IdP
-        ;idp_metadata_url =
-
-        # Duration, since the IdP issued a response and the SP is allowed to process it. Defaults to 90 seconds.
-        ;max_issue_delay = 90s
-
-        # Duration, for how long the SP's metadata should be valid. Defaults to 48 hours.
-        ;metadata_valid_duration = 48h
-
-        # Friendly name or name of the attribute within the SAML assertion to use as the user's name
-        ;assertion_attribute_name = displayName
-
-        # Friendly name or name of the attribute within the SAML assertion to use as the user's login handle
-        ;assertion_attribute_login = mail
-
-        # Friendly name or name of the attribute within the SAML assertion to use as the user's email
-        ;assertion_attribute_email = mail
-
-        #################################### Grafana.com Auth ####################
-        [auth.grafana_com]
-        ;enabled = false
-        ;allow_sign_up = true
-        ;client_id = some_id
-        ;client_secret = some_secret
-        ;scopes = user:email
-        ;allowed_organizations =
-
-        #################################### Auth Proxy ##########################
-        [auth.proxy]
-        ;enabled = false
-        ;header_name = X-WEBAUTH-USER
-        ;header_property = username
-        ;auto_sign_up = true
-        ;ldap_sync_ttl = 60
-        ;whitelist = 192.168.1.1, 192.168.2.1
-        ;headers = Email:X-User-Email, Name:X-User-Name
-
-        #################################### Basic Auth ##########################
-        [auth.basic]
-        ;enabled = true
-
-        #################################### Auth LDAP ##########################
-        [auth.ldap]
-        ;enabled = false
-        ;config_file = /etc/grafana/ldap.toml
-        ;allow_sign_up = true
-
-        # LDAP backround sync (Enterprise only)
-        # At 1 am every day
-        ;sync_cron = "0 0 1 * * *"
-        ;active_sync_enabled = true
-
-        #################################### SMTP / Emailing ##########################
-        [smtp]
-        ;enabled = false
-        ;host = localhost:25
-        ;user =
-        # If the password contains # or ; you have to wrap it with trippel quotes. Ex """#password;"""
-        ;password =
-        ;cert_file =
-        ;key_file =
-        ;skip_verify = false
-        ;from_address = admin@grafana.localhost
-        ;from_name = Grafana
-        # EHLO identity in SMTP dialog (defaults to instance_name)
-        ;ehlo_identity = dashboard.example.com
-
-        [emails]
-        ;welcome_email_on_sign_up = false
-
-        #################################### Logging ##########################
-        [log]
-        # Either "console", "file", "syslog". Default is console and  file
-        # Use space to separate multiple modes, e.g. "console file"
-        ;mode = console file
-
-        # Either "debug", "info", "warn", "error", "critical", default is "info"
-        ;level = info
-
-        # optional settings to set different levels for specific loggers. Ex filters = sqlstore:debug
-        ;filters =
-
-        # For "console" mode only
-        [log.console]
-        ;level =
-
-        # log line format, valid options are text, console and json
-        ;format = console
-
-        # For "file" mode only
-        [log.file]
-        ;level =
-
-        # log line format, valid options are text, console and json
-        ;format = text
-
-        # This enables automated log rotate(switch of following options), default is true
-        ;log_rotate = true
-
-        # Max line number of single file, default is 1000000
-        ;max_lines = 1000000
-
-        # Max size shift of single file, default is 28 means 1 << 28, 256MB
-        ;max_size_shift = 28
-
-        # Segment log daily, default is true
-        ;daily_rotate = true
-
-        # Expired days of log file(delete after max days), default is 7
-        ;max_days = 7
-
-        [log.syslog]
-        ;level =
-
-        # log line format, valid options are text, console and json
-        ;format = text
-
-        # Syslog network type and address. This can be udp, tcp, or unix. If left blank, the default unix endpoints will be used.
-        ;network =
-        ;address =
-
-        # Syslog facility. user, daemon and local0 through local7 are valid.
-        ;facility =
-
-        # Syslog tag. By default, the process' argv[0] is used.
-        ;tag =
-
-        #################################### Alerting ############################
-        [alerting]
-        # Disable alerting engine & UI features
-        ;enabled = true
-        # Makes it possible to turn off alert rule execution but alerting UI is visible
-        ;execute_alerts = true
-
-        # Default setting for new alert rules. Defaults to categorize error and timeouts as alerting. (alerting, keep_state)
-        ;error_or_timeout = alerting
-
-        # Default setting for how Grafana handles nodata or null values in alerting. (alerting, no_data, keep_state, ok)
-        ;nodata_or_nullvalues = no_data
-
-        # Alert notifications can include images, but rendering many images at the same time can overload the server
-        # This limit will protect the server from render overloading and make sure notifications are sent out quickly
-        ;concurrent_render_limit = 5
-
-
-        # Default setting for alert calculation timeout. Default value is 30
-        ;evaluation_timeout_seconds = 30
-
-        # Default setting for alert notification timeout. Default value is 30
-        ;notification_timeout_seconds = 30
-
-        # Default setting for max attempts to sending alert notifications. Default value is 3
-        ;max_attempts = 3
-
-        #################################### Explore #############################
-        [explore]
-        # Enable the Explore section
-        ;enabled = true
-
-        #################################### Internal Grafana Metrics ##########################
-        # Metrics available at HTTP API Url /metrics
-        [metrics]
-        # Disable / Enable internal metrics
-        ;enabled           = true
-        # Disable total stats (stat_totals_*) metrics to be generated
-        ;disable_total_stats = false
-
-        # Publish interval
-        ;interval_seconds  = 10
-
-        # Send internal metrics to Graphite
-        [metrics.graphite]
-        # Enable by setting the address setting (ex localhost:2003)
-        ;address =
-        ;prefix = prod.grafana.%(instance_name)s.
-
-        #################################### Distributed tracing ############
-        [tracing.jaeger]
-        # Enable by setting the address sending traces to jaeger (ex localhost:6831)
-        ;address = localhost:6831
-        # Tag that will always be included in when creating new spans. ex (tag1:value1,tag2:value2)
-        ;always_included_tag = tag1:value1
-        # Type specifies the type of the sampler: const, probabilistic, rateLimiting, or remote
-        ;sampler_type = const
-        # jaeger samplerconfig param
-        # for "const" sampler, 0 or 1 for always false/true respectively
-        # for "probabilistic" sampler, a probability between 0 and 1
-        # for "rateLimiting" sampler, the number of spans per second
-        # for "remote" sampler, param is the same as for "probabilistic"
-        # and indicates the initial sampling rate before the actual one
-        # is received from the mothership
-        ;sampler_param = 1
-        # Whether or not to use Zipkin propagation (x-b3- HTTP headers).
-        ;zipkin_propagation = false
-        # Setting this to true disables shared RPC spans.
-        # Not disabling is the most common setting when using Zipkin elsewhere in your infrastructure.
-        ;disable_shared_zipkin_spans = false
-
-        #################################### Grafana.com integration  ##########################
-        # Url used to import dashboards directly from Grafana.com
-        [grafana_com]
-        ;url = https://grafana.com
-
-        #################################### External image storage ##########################
-        [external_image_storage]
-        # Used for uploading images to public servers so they can be included in slack/email messages.
-        # you can choose between (s3, webdav, gcs, azure_blob, local)
-        ;provider =
-
-        [external_image_storage.s3]
-        ;bucket =
-        ;region =
-        ;path =
-        ;access_key =
-        ;secret_key =
-
-        [external_image_storage.webdav]
-        ;url =
-        ;public_url =
-        ;username =
-        ;password =
-
-        [external_image_storage.gcs]
-        ;key_file =
-        ;bucket =
-        ;path =
-
-        [external_image_storage.azure_blob]
-        ;account_name =
-        ;account_key =
-        ;container_name =
-
-        [external_image_storage.local]
-        # does not require any configuration
-
-        [rendering]
-        # Options to configure external image rendering server like https://github.com/grafana/grafana-image-renderer
-        ;server_url =
-        ;callback_url =
-
-        [enterprise]
-        # Path to a valid Grafana Enterprise license.jwt file
-        ;license_path =
-
-        [panels]
-        # If set to true Grafana will allow script tags in text panels. Not recommended as it enable XSS vulnerabilities.
-        ;disable_sanitize_html = false
-
-        [plugins]
-        ;enable_alpha = false
-        ;app_tls_skip_verify_insecure = false
-    kind: ConfigMap
-    metadata:
-      name: grafana-config
-
-
-
-
-  - apiVersion: v1
-    data:
-      datasources.yml: |-
-        # config file version
-        apiVersion: 1
-
-        # list of datasources that should be deleted from the database
-        deleteDatasources:
-          - name: Prometheus
-            orgId: 1
-
-        # list of datasources to insert/update depending
-        # what's available in the database
-        datasources:
-          # <string, required> name of the datasource. Required
-        - name: Prometheus
-          # <string, required> datasource type. Required
-          type: prometheus
-          # <string, required> access mode. proxy or direct (Server or Browser in the UI). Required
-          access: proxy
-          # <int> org id. will default to orgId 1 if not specified
-          orgId: 1
-          # <string> url
-          url: http://prometheus:9090
-          # <string> Deprecated, use secureJsonData.password
-          password:
-          # <string> database user, if used
-          user:
-          # <string> database name, if used
-          database:
-          # <bool> enable/disable basic auth
-          basicAuth:
-          # <string> basic auth username
-          basicAuthUser:
-          # <string> Deprecated, use secureJsonData.basicAuthPassword
-          basicAuthPassword:
-          # <bool> enable/disable with credentials headers
-          withCredentials:
-          # <bool> mark as default datasource. Max one per org
-          isDefault:
-          # <map> fields that will be converted to json and stored in jsonData
-          version: 1
-          # <bool> allow users to edit datasources from the UI.
-          editable: false
-    kind: ConfigMap
-    metadata:
-      name: grafana-config-datasource
-
-  - apiVersion: v1
-    data:
-      dashboard.yml: |-
-        apiVersion: 1
-        
-        providers:
-        - name: 'Prometheus'
-          orgId: 1
-          folder: ''
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /opt/grafana-dashboard
-    kind: ConfigMap
-    metadata:
-      name: grafana-config-dashboard       
-
-
-  - apiVersion: v1
-    kind: DeploymentConfig
-    metadata:
-      labels:
-        app: gravitee-api-gateway
-      name: grafana
-    spec:
-      replicas: 1
-      revisionHistoryLimit: 10
-      selector:
-        app: gravitee-api-gateway
-        deploymentconfig: grafana
-      strategy:
-        activeDeadlineSeconds: 21600
-        resources: {}
-        rollingParams:
-          intervalSeconds: 1
-          maxSurge: 25%
-          maxUnavailable: 25%
-          timeoutSeconds: 600
-          updatePeriodSeconds: 1
-        type: Rolling
-      template:
-        metadata:
-          labels:
-            app: gravitee-api-gateway
-            deploymentconfig: grafana
-        spec:
-          containers:
-            - image: "grafana:latest"
-              imagePullPolicy: Always
-              name: grafana
-              ports:
-                - containerPort: 3000
-                  protocol: TCP
+                timeoutSeconds: 15
               resources:
                 limits:
-                  cpu: 500m
-                  memory: 128Mi
-              livenessProbe:
-                exec:
-                  command:
-                  - sh
-                  - "-c"
-                  - |
-                    nc -z -v -w5 127.0.0.1 3000
-                    if [ "$?" == 0 ]; then
-                    exit 0
-                    else
-                    exit 1
-                    fi
-                initialDelaySeconds: 90
-                timeoutSeconds: 5
-              readinessProbe:
-                exec:
-                  command:
-                  - sh
-                  - "-c"
-                  - |
-                    nc -z -v -w5 127.0.0.1 3000
-                    if [ "$?" == 0 ]; then
-                    exit 0
-                    else
-                    exit 1
-                    fi
-                initialDelaySeconds: 30
-                timeoutSeconds: 15                  
+                  memory: 256Mi
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
               volumeMounts:
-              - name: grafana
-                mountPath: /opt/grafana-data
-                subPath: grafana
-              - name: grafana-config
-                mountPath: /opt/grafana-config
-              - name: grafana-config-datasource
-                mountPath: /opt/grafana/conf/provisioning/datasources
-              - name: grafana-config-dashboard
-                mountPath: /opt/grafana/conf/provisioning/dashboards                                      
-          volumes:
-            - name: grafana
-              persistentVolumeClaim:
-                claimName: gateway-api-gateway-data
-            - configMap:
-                name: grafana-config
-              name: grafana-config
-            - configMap:
-                name: grafana-config-datasource
-              name: grafana-config-datasource
-            - configMap:
-                name: grafana-config-dashboard
-              name: grafana-config-dashboard                                                   
+                - mountPath: /usr/share/elasticsearch/data
+                  name: elasticsearch
+                  subPath: elasticsearch
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
+          securityContext: {}
           terminationGracePeriodSeconds: 30
+          volumes:
+            - name: elasticsearch
+              persistentVolumeClaim:
+                claimName: gravitee-api-gateway-data
       test: false
       triggers:
         - type: ConfigChange
         - imageChangeParams:
             automatic: true
             containerNames:
-              - grafana
+              - elasticsearch
             from:
               kind: ImageStreamTag
-              name: "grafana:latest"
+              name: 'elasticsearch:7.4.2'
           type: ImageChange
+
 
 
   - apiVersion: v1
@@ -2766,60 +1560,37 @@
     metadata:
       labels:
         app: gravitee-api-gateway
-      name: grafana
+      name: elasticsearch
     spec:
       ports:
-        - name: http
-          port: 3000
+        - name: tcp
+          port: 9200
           protocol: TCP
-          targetPort: 3000
+          targetPort: 9200
+        - name: tcp2
+          port: 9300
+          protocol: TCP
+          targetPort: 9300          
       selector:
         app: gravitee-api-gateway
-        deploymentconfig: grafana
+        deploymentconfig: elasticsearch
       sessionAffinity: None
       type: ClusterIP
 
 
-  - apiVersion: v1
-    kind: BuildConfig
-    metadata:
-      labels:
-        app: gravitee-api-gateway
-        build: grafana
-      name: grafana
-    spec:
-      failedBuildsHistoryLimit: 5
-      nodeSelector: null
-      output:
-        to:
-          kind: ImageStreamTag
-          name: 'grafana:latest'
-      postCommit: {}
-      resources: {}
-      runPolicy: Serial
-      source:
-        contextDir: grafana
-        git:
-          ref: master
-          uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
-        type: Git
-      strategy:
-        dockerStrategy:
-          dockerfilePath: Dockerfile
-        type: Docker
-      successfulBuildsHistoryLimit: 5
-      triggers:
-        - type: ConfigChange
 
   - apiVersion: v1
     kind: ImageStream
     metadata:
-      labels:
-        app: gravitee-api-gateway
-      name: grafana
-    spec: {}      
-      
-      
+        name: elasticsearch
+    spec:
+        tags:
+          - name: '7.4.2'
+            from:
+                kind: DockerImage
+                name: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
 
 
+###### FIN elasticsearch
+    
 
