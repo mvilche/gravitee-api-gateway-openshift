@@ -1,6 +1,6 @@
-FROM alpine:3.10
+FROM alpine:3.11
 
-ENV GRAVITEE_VERSION=https://download.gravitee.io/graviteeio-apim/distributions/graviteeio-full-1.29.6.zip
+ENV GRAVITEE_VERSION=https://download.gravitee.io/graviteeio-apim/distributions/graviteeio-full-1.30.1.zip
 
 RUN apk add --update --no-cache wget busybox-extras busybox-suid curl shadow apache2 unzip && \
 sed -i -e "s/^Listen 80/Listen 8080/" /etc/apache2/httpd.conf && \

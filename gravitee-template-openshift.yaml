@@ -1327,7 +1327,7 @@
         app: gravitee-api-gateway
       name: management-api
     spec:
-      host:
+      host: ${ADMIN_HOST}
       port:
         targetPort: http
       to:
@@ -1378,7 +1378,7 @@
     data:
       constants.json: |-
         {
-          "baseURL": "http://management-api/management/"
+          "baseURL": "http://${ADMIN_HOST}/management/"
         }
     kind: ConfigMap
     metadata:
@@ -1677,6 +1677,16 @@
             from:
                 kind: DockerImage
                 name: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+
+
+
+
+  parameters:
+    - name: ADMIN_HOST
+      displayName: Url de acceso al portal (solo dominio sin protocolo)
+      value: ''
+      required: true
+
 
 
 ###### FIN elasticsearch
