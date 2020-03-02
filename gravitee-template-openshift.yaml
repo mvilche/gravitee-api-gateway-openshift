@@ -1220,13 +1220,7 @@
       strategy:
         activeDeadlineSeconds: 21600
         resources: {}
-        rollingParams:
-          intervalSeconds: 1
-          maxSurge: 25%
-          maxUnavailable: 25%
-          timeoutSeconds: 600
-          updatePeriodSeconds: 1
-        type: Rolling
+        type: Recreate
       template:
         metadata:
           labels:
@@ -1715,7 +1709,7 @@
 
   parameters:
     - name: ADMIN_HOST
-      displayName: Url de acceso al portal (solo dominio sin protocolo)
+      displayName: Url publica de management-api (solo dominio sin protocolo). Ejemplo management-api-api.127.0.0.1.nip.io
       value: ''
       required: true
 
