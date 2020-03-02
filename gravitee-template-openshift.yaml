@@ -1392,6 +1392,559 @@
 
 ### fin admin
 
+
+### comienzo alertengine
+
+
+#### comienzo api admin
+
+
+  - apiVersion: v1
+    data:
+      hazelcast.xml: |-
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!--
+          ~ Copyright (c) 2008-2018, Hazelcast, Inc. All Rights Reserved.
+          ~
+          ~ Licensed under the Apache License, Version 2.0 (the "License");
+          ~ you may not use this file except in compliance with the License.
+          ~ You may obtain a copy of the License at
+          ~
+          ~ http://www.apache.org/licenses/LICENSE-2.0
+          ~
+          ~ Unless required by applicable law or agreed to in writing, software
+          ~ distributed under the License is distributed on an "AS IS" BASIS,
+          ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+          ~ See the License for the specific language governing permissions and
+          ~ limitations under the License.
+          -->
+        <!--
+          The default Hazelcast configuration.
+          This XML file is used when no hazelcast.xml is present.
+          To learn how to configure Hazelcast, please see the schema at
+          https://hazelcast.com/schema/config/hazelcast-config-3.11.xsd
+          or the Reference Manual at https://hazelcast.org/documentation/
+        -->
+        <!--suppress XmlDefaultAttributeValue -->
+        <hazelcast xmlns="http://www.hazelcast.com/schema/config"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.hazelcast.com/schema/config
+                  http://www.hazelcast.com/schema/config/hazelcast-config-3.12.xsd">
+
+            <group>
+                <name>dev</name>
+                <password>dev-pass</password>
+            </group>
+            <management-center enabled="false">http://localhost:8080/hazelcast-mancenter</management-center>
+            <network>
+                <port auto-increment="true" port-count="100">5701</port>
+                <outbound-ports>
+                    <!--
+                    Allowed port range when connecting to other nodes.
+                    0 or * means use system provided port.
+                    -->
+                    <ports>0</ports>
+                </outbound-ports>
+                <join>
+                    <multicast enabled="false">
+                        <multicast-group>224.2.2.3</multicast-group>
+                        <multicast-port>54327</multicast-port>
+                    </multicast>
+                    <tcp-ip enabled="true">
+                        <interface>127.0.0.1</interface>
+                    </tcp-ip>
+                    <aws enabled="false">
+                        <access-key>my-access-key</access-key>
+                        <secret-key>my-secret-key</secret-key>
+                        <!--optional, default is us-east-1 -->
+                        <region>us-west-1</region>
+                        <!--optional, default is ec2.amazonaws.com. If set, region shouldn't be set as it will override this property -->
+                        <host-header>ec2.amazonaws.com</host-header>
+                        <!-- optional, only instances belonging to this group will be discovered, default will try all running instances -->
+                        <security-group-name>hazelcast-sg</security-group-name>
+                        <tag-key>type</tag-key>
+                        <tag-value>hz-nodes</tag-value>
+                    </aws>
+                </join>
+                <interfaces enabled="false">
+                    <interface>10.10.1.*</interface>
+                </interfaces>
+                <ssl enabled="false"/>
+                <socket-interceptor enabled="false"/>
+                <symmetric-encryption enabled="false">
+                    <!--
+                      encryption algorithm such as
+                      DES/ECB/PKCS5Padding,
+                      PBEWithMD5AndDES,
+                      AES/CBC/PKCS5Padding,
+                      Blowfish,
+                      DESede
+                    -->
+                    <algorithm>PBEWithMD5AndDES</algorithm>
+                    <!-- salt value to use when generating the secret key -->
+                    <salt>thesalt</salt>
+                    <!-- pass phrase to use when generating the secret key -->
+                    <password>thepass</password>
+                    <!-- iteration count to use when generating the secret key -->
+                    <iteration-count>19</iteration-count>
+                </symmetric-encryption>
+            </network>
+            <partition-group enabled="false"/>
+            <executor-service name="default">
+                <pool-size>16</pool-size>
+                <!--Queue capacity. 0 means Integer.MAX_VALUE.-->
+                <queue-capacity>0</queue-capacity>
+            </executor-service>
+            <queue name="default">
+                <!--
+                    Maximum size of the queue. When a JVM's local queue size reaches the maximum,
+                    all put/offer operations will get blocked until the queue size
+                    of the JVM goes down below the maximum.
+                    Any integer between 0 and Integer.MAX_VALUE. 0 means
+                    Integer.MAX_VALUE. Default is 0.
+                -->
+                <max-size>0</max-size>
+                <!--
+                    Number of backups. If 1 is set as the backup-count for example,
+                    then all entries of the map will be copied to another JVM for
+                    fail-safety. 0 means no backup.
+                -->
+                <backup-count>1</backup-count>
+
+                <!--
+                    Number of async backups. 0 means no backup.
+                -->
+                <async-backup-count>0</async-backup-count>
+
+                <empty-queue-ttl>-1</empty-queue-ttl>
+            </queue>
+            <map name="default">
+                <!--
+                  Data type that will be used for storing recordMap.
+                  Possible values:
+                  BINARY (default): keys and values will be stored as binary data
+                  OBJECT : values will be stored in their object forms
+                  NATIVE : values will be stored in non-heap region of JVM
+                -->
+                <in-memory-format>BINARY</in-memory-format>
+
+                <!--
+                    Number of backups. If 1 is set as the backup-count for example,
+                    then all entries of the map will be copied to another JVM for
+                    fail-safety. 0 means no backup.
+                -->
+                <backup-count>1</backup-count>
+                <!--
+                    Number of async backups. 0 means no backup.
+                -->
+                <async-backup-count>0</async-backup-count>
+                <!--
+                    Maximum number of seconds for each entry to stay in the map. Entries that are
+                    older than <time-to-live-seconds> and not updated for <time-to-live-seconds>
+                    will get automatically evicted from the map.
+                    Any integer between 0 and Integer.MAX_VALUE. 0 means infinite. Default is 0
+                -->
+                <time-to-live-seconds>0</time-to-live-seconds>
+                <!--
+                    Maximum number of seconds for each entry to stay idle in the map. Entries that are
+                    idle(not touched) for more than <max-idle-seconds> will get
+                    automatically evicted from the map. Entry is touched if get, put or containsKey is called.
+                    Any integer between 0 and Integer.MAX_VALUE. 0 means infinite. Default is 0.
+                -->
+                <max-idle-seconds>0</max-idle-seconds>
+                <!--
+                    Valid values are:
+                    NONE (no eviction),
+                    LRU (Least Recently Used),
+                    LFU (Least Frequently Used).
+                    NONE is the default.
+                -->
+                <eviction-policy>NONE</eviction-policy>
+                <!--
+                    Maximum size of the map. When max size is reached,
+                    map is evicted based on the policy defined.
+                    Any integer between 0 and Integer.MAX_VALUE. 0 means
+                    Integer.MAX_VALUE. Default is 0.
+                -->
+                <max-size policy="PER_NODE">0</max-size>
+                <!--
+                    `eviction-percentage` property is deprecated and will be ignored when it is set.
+                    As of version 3.7, eviction mechanism changed.
+                    It uses a probabilistic algorithm based on sampling. Please see documentation for further details
+                -->
+                <eviction-percentage>25</eviction-percentage>
+                <!--
+                    `min-eviction-check-millis` property is deprecated  and will be ignored when it is set.
+                    As of version 3.7, eviction mechanism changed.
+                    It uses a probabilistic algorithm based on sampling. Please see documentation for further details
+                -->
+                <min-eviction-check-millis>100</min-eviction-check-millis>
+            </map>
+
+            <multimap name="default">
+                <backup-count>1</backup-count>
+                <value-collection-type>SET</value-collection-type>
+            </multimap>
+
+            <replicatedmap name="default">
+                <in-memory-format>OBJECT</in-memory-format>
+                <async-fillup>true</async-fillup>
+                <statistics-enabled>true</statistics-enabled>
+            </replicatedmap>
+
+            <list name="default">
+                <backup-count>1</backup-count>
+            </list>
+
+            <set name="default">
+                <backup-count>1</backup-count>
+            </set>
+
+            <jobtracker name="default">
+                <max-thread-size>0</max-thread-size>
+                <!-- Queue size 0 means number of partitions * 2 -->
+                <queue-size>0</queue-size>
+                <retry-count>0</retry-count>
+                <chunk-size>1000</chunk-size>
+                <communicate-stats>true</communicate-stats>
+                <topology-changed-strategy>CANCEL_RUNNING_OPERATION</topology-changed-strategy>
+            </jobtracker>
+
+            <semaphore name="default">
+                <initial-permits>0</initial-permits>
+                <backup-count>1</backup-count>
+                <async-backup-count>0</async-backup-count>
+            </semaphore>
+
+            <serialization>
+                <portable-version>0</portable-version>
+            </serialization>
+
+            <services enable-defaults="true"/>
+        </hazelcast>            
+      gravitee.yml: |-
+        ############################################################################################################
+        ################################## Gravitee.io Alert Engine - Configuration ################################
+        ############################################################################################################
+
+        ############################################################################################################
+        # This file is the general configuration of Gravitee.io Alert Engine:
+        # - Properties (and respective default values) in comment are provided for information.
+        # - You can reference other property by using ${property.name} syntax
+        # - gravitee.home property is automatically set-up by launcher and refers to the installation path. Do not override it !
+        #
+        ############################################################################################################
+
+        # Ingesters
+        ingesters:
+          ws:
+        #    instances: 0
+        #    port: 8072
+        #    host: 0.0.0.0
+        #    secured: false
+        #    alpn: false
+        #    ssl:
+        #      clientAuth: false
+        #      keystore:
+        #        path: ${gravitee.home}/security/keystore.jks
+        #        password: secret
+        #      truststore:
+        #        path: ${gravitee.home}/security/truststore.jks
+        #        password: secret
+            authentication: # authentication type to be used for HTTP authentication
+              type: basic # none to disable authentication / basic for basic authentication
+              users:
+                admin: adminadmin
+
+        # Alert service configurations. Provided values are default values.
+        # All services are enabled by default. To stop one of them, you have to add the property 'enabled: false'.
+        services:
+          core:
+            http:
+              enabled: true
+              port: 18072
+              host: localhost
+              authentication:
+                # authentication type to be used for the core services
+                # - none : to disable authentication
+                # - basic : to use basic authentication
+                # default is "basic"
+                type: basic
+                users:
+                  admin: adminadmin
+          metrics:
+            enabled: false
+            prometheus:
+              enabled: true
+        ds:
+          mongodb:
+            dbname: gravitee
+            host: mongo
+            port: 27017              
+        management:
+          type: mongodb
+          mongodb:
+            dbname: ${ds.mongodb.dbname}
+            host: ${ds.mongodb.host}
+            port: ${ds.mongodb.port}              
+
+        cluster:
+          hazelcast:
+            config:
+              path: ${gravitee.home}/config/hazelcast.xml        
+      logback.xml: |-
+        <?xml version="1.0" encoding="UTF-8"?>
+
+        <!--
+          ~ Copyright (c) 2015-2016, The Gravitee team (http://www.gravitee.io)
+          ~
+          ~  Licensed under the Apache License, Version 2.0 (the "License");
+          ~  you may not use this file except in compliance with the License.
+          ~  You may obtain a copy of the License at
+          ~
+          ~  http://www.apache.org/licenses/LICENSE-2.0
+          ~
+          ~  Unless required by applicable law or agreed to in writing, software
+          ~  distributed under the License is distributed on an "AS IS" BASIS,
+          ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+          ~  See the License for the specific language governing permissions and
+          ~  limitations under the License.
+          -->
+        <configuration>
+            <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+                <!-- encoders are assigned the type
+                    ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+                <encoder>
+                    <pattern>%d{HH:mm:ss.SSS} [%thread] [%X{api}] %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+
+            <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <file>${gravitee.home}/logs/gravitee.log</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                    <!-- daily rollover -->
+                    <fileNamePattern>${gravitee.home}/logs/gravitee_%d{yyyy-MM-dd}.log</fileNamePattern>
+
+                    <!-- keep 30 days' worth of history -->
+                    <maxHistory>30</maxHistory>
+                </rollingPolicy>
+
+                <encoder>
+                    <pattern>%d{HH:mm:ss.SSS} [%thread] [%X{api}] %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+
+            <appender name="async-file" class="ch.qos.logback.classic.AsyncAppender">
+                <appender-ref ref="FILE" />
+            </appender>
+
+            <appender name="async-console" class="ch.qos.logback.classic.AsyncAppender">
+                <appender-ref ref="STDOUT" />
+            </appender>
+
+            <logger name="com.graviteesource" level="INFO" />
+            <logger name="org.reflections" level="WARN" />
+            <logger name="org.springframework" level="WARN" />
+            <logger name="com.hazelcast" level="WARN" />
+
+            <!-- Strictly speaking, the level attribute is not necessary since -->
+            <!-- the level of the root level is set to DEBUG by default.       -->
+            <root level="INFO">
+                <appender-ref ref="async-console" />
+                <appender-ref ref="async-file" />
+            </root>
+        </configuration>        
+    kind: ConfigMap
+    metadata:
+      name: alertengine-config
+
+
+
+  - apiVersion: v1
+    kind: DeploymentConfig
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: alertengine
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 10
+      selector:
+        app: gravitee-api-gateway
+        deploymentconfig: alertengine
+      strategy:
+        activeDeadlineSeconds: 21600
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          maxSurge: 25%
+          maxUnavailable: 25%
+          timeoutSeconds: 600
+          updatePeriodSeconds: 1
+        type: Rolling
+      template:
+        metadata:
+          labels:
+            app: gravitee-api-gateway
+            deploymentconfig: alertengine
+        spec:
+          containers:
+            - env:
+                - name: WAITFOR_HOST
+                  value: mongo
+                - name: WAITFOR_PORT
+                  value: '27017'
+              image: "alertengine:latest"
+              imagePullPolicy: Always
+              name: alertengine
+              ports:
+                - containerPort: 8083
+                  protocol: TCP                                         
+              livenessProbe:
+                exec:
+                  command:
+                  - sh
+                  - "-c"
+                  - |
+                    nc -z -v -w5 127.0.0.1 18072
+                    if [ "$?" == 0 ]; then
+                    exit 0
+                    else
+                    exit 1
+                    fi
+                initialDelaySeconds: 90
+                timeoutSeconds: 5
+              readinessProbe:
+                exec:
+                  command:
+                  - sh
+                  - "-c"
+                  - |
+                    nc -z -v -w5 127.0.0.1 18072
+                    if [ "$?" == 0 ]; then
+                    exit 0
+                    else
+                    exit 1
+                    fi
+                initialDelaySeconds: 30
+                timeoutSeconds: 15
+              resources:
+                limits:
+                  cpu: 1000m
+                  memory: 2048Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+              volumeMounts:
+                - mountPath: /opt/alertengine/config
+                  name: alertengine-config
+                - mountPath: /opt/alertengine/data
+                  name: alertengine
+                  subPath: alertengine                  
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - configMap:
+                name: alertengine-config
+              name: alertengine-config
+            - name: alertengine
+              persistentVolumeClaim:
+                claimName: gravitee-api-gateway-data              
+      test: false
+      triggers:
+        - type: ConfigChange
+        - imageChangeParams:
+            automatic: true
+            containerNames:
+              - alertengine
+            from:
+              kind: ImageStreamTag
+              name: "alertengine:latest"
+          type: ImageChange
+
+
+
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+        build: alertengine
+      name: alertengine
+    spec:
+      failedBuildsHistoryLimit: 5
+      nodeSelector: null
+      output:
+        to:
+          kind: ImageStreamTag
+          name: 'alertengine:latest'
+      postCommit: {}
+      resources: {}
+      runPolicy: Serial
+      source:
+        contextDir: alertengine
+        git:
+          ref: master
+          uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
+        type: Git
+      strategy:
+        dockerStrategy:
+          dockerfilePath: Dockerfile
+        type: Docker
+      successfulBuildsHistoryLimit: 5
+      triggers:
+        - type: ConfigChange
+
+
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: alertengine
+    spec:
+      host: ${ADMIN_HOST}
+      port:
+        targetPort: http
+      to:
+        kind: Service
+        name: alertengine
+        weight: 100
+      wildcardPolicy: None        
+
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: alertengine
+    spec:
+      ports:
+        - name: http
+          port: 18072
+          protocol: TCP
+          targetPort: 18072                                  
+      selector:
+        app: gravitee-api-gateway
+        deploymentconfig: alertengine
+      sessionAffinity: None
+      type: ClusterIP
+
+    
+
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: alertengine
+    spec: {}
+
+
+### fin alertengine
+
 ### start portal
 
   - apiVersion: v1
