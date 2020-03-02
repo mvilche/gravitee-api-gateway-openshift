@@ -6,7 +6,9 @@ RUN apk add --update --no-cache wget busybox-extras busybox-suid curl shadow ope
 mkdir -p /opt && cd tmp/ && echo "DESCARGANDO GRAVITEE..." && wget --no-verbose $GRAVITEE_VERSION -O /tmp/api.zip > /dev/null
 
 RUN cd tmp/ && unzip api.zip && mv graviteeio-full*/graviteeio-management-api* /opt/management && \
-rm -rf /tmp/*.zip /tmp/graviteeio* /etc/localtime
+rm -rf /tmp/*.zip /tmp/graviteeio* /etc/localtime && \
+sed -i '/-Xmx/d' /opt/management/bin/gravitee && \
+sed -i '/-Xms/d' /opt/management/bin/gravitee
 
 COPY run /usr/bin/run
 
