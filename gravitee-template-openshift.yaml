@@ -1615,7 +1615,7 @@
                   value: gravitee
                 - name: ES_JAVA_OPTS
                   value: -Xmx512m -Xms512m
-              image: elasticsearch:7.6.0
+              image: elasticsearch:7.6.2
               imagePullPolicy: Always
               name: elasticsearch
               ports:
@@ -1682,7 +1682,7 @@
               - elasticsearch
             from:
               kind: ImageStreamTag
-              name: 'elasticsearch:7.6.0'
+              name: 'elasticsearch:7.6.2'
           type: ImageChange
 
 
