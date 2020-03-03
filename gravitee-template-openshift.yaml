@@ -477,6 +477,9 @@
                 initialDelaySeconds: 30
                 timeoutSeconds: 15
               resources:
+                requests:
+                  memory: 500Mi
+                  cpu: 500m              
                 limits:
                   cpu: 1000m
                   memory: 1024Mi
@@ -678,8 +681,11 @@
                 initialDelaySeconds: 30
                 timeoutSeconds: 15
               resources:
+                requests:
+                  memory: 128Mi
+                  cpu: 200m              
                 limits:
-                  cpu: 1024m
+                  cpu: 500m
                   memory: 512Mi                
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
@@ -1270,6 +1276,9 @@
                 initialDelaySeconds: 30
                 timeoutSeconds: 15
               resources:
+                requests:
+                  memory: 256Mi
+                  cpu: 500m              
                 limits:
                   cpu: 1000m
                   memory: 2048Mi
@@ -1463,12 +1472,15 @@
                 - containerPort: 6379
                   protocol: TCP
               resources:
+                requests:
+                  memory: 50Mi
+                  cpu: 100m              
                 limits:
-                  cpu: 500m
+                  cpu: 300m
                   memory: 256Mi
               livenessProbe:
                 failureThreshold: 3
-                initialDelaySeconds: 60
+                initialDelaySeconds: 30
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
@@ -1477,7 +1489,7 @@
                 timeoutSeconds: 15
               readinessProbe:
                 failureThreshold: 3
-                initialDelaySeconds: 60
+                initialDelaySeconds: 30
                 periodSeconds: 20
                 successThreshold: 1
                 httpGet:
@@ -1638,7 +1650,11 @@
                 initialDelaySeconds: 30
                 timeoutSeconds: 15
               resources:
+                requests:
+                  memory: 512Mi
+                  cpu: 500m              
                 limits:
+                  cpu: 2000m
                   memory: 2048Mi
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
