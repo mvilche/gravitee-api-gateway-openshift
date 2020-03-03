@@ -1611,9 +1611,11 @@
             - env:
                 - name: discovery.type
                   value: single-node
+                - name: cluster.name
+                  value: gravitee
                 - name: ES_JAVA_OPTS
-                  value: -Xmx1024m -Xms1024m
-              image: elasticsearch:7.4.2
+                  value: -Xmx512m -Xms512m
+              image: elasticsearch:7.6.0
               imagePullPolicy: Always
               name: elasticsearch
               ports:
@@ -1655,7 +1657,7 @@
                   cpu: 500m              
                 limits:
                   cpu: 2000m
-                  memory: 2048Mi
+                  memory: 1024Mi
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
               volumeMounts:
@@ -1680,7 +1682,7 @@
               - elasticsearch
             from:
               kind: ImageStreamTag
-              name: 'elasticsearch:7.4.2'
+              name: 'elasticsearch:7.6.0'
           type: ImageChange
 
 
@@ -1715,10 +1717,10 @@
         name: elasticsearch
     spec:
         tags:
-          - name: '7.4.2'
+          - name: '7.6.2'
             from:
                 kind: DockerImage
-                name: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+                name: docker.elastic.co/elasticsearch/elasticsearch:7.6.0
 
 
 
