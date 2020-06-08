@@ -6,7 +6,7 @@ sed -ri -e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!g' /etc/apache2/httpd.conf
 rm -rf /var/www/localhost/htdocs
 
 COPY run /usr/bin/run
-COPY graviteeio-management-ui-1.30.5 /var/www/localhost/htdocs
+COPY graviteeio-management-ui-3.0.2 /var/www/localhost/htdocs
 RUN rm -rf  /etc/localtime && mkdir -p /opt/config && usermod -u 1001 apache && usermod -aG 0 apache && \
 touch /etc/localtime /etc/timezone && \
 chown -R 1001 /usr/bin/run /opt /var/www/localhost/htdocs /etc/apache2 /var/run/apache2 /usr/share/apache2 /var/log/apache2/ /etc/localtime /etc/timezone  && \

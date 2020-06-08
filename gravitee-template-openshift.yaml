@@ -1400,12 +1400,189 @@
 ### fin admin
 
 
-### comienzo alertengine
+### start portal
+
+  - apiVersion: v1
+    data:
+      config.json: |-
+        {
+          "baseUrl": "/portal/environments/DEFAULT",
+          "loaderUrl": "assets/images/gravitee-loader.gif",
+          "pagination": {
+            "size": {
+              "default": 10,
+              "values": [5, 10, 25, 50, 100]
+            }
+          }
+        }
+    kind: ConfigMap
+    metadata:
+      name: portal-config
 
 
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: portal
+    spec:
+      host:
+      port:
+        targetPort: http
+      to:
+        kind: Service
+        name: portal
+        weight: 100
+      wildcardPolicy: None    
+
+  - apiVersion: v1
+    kind: DeploymentConfig
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: portal
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 10
+      selector:
+        app: gravitee-api-gateway
+        deploymentconfig: portal
+      strategy:
+        activeDeadlineSeconds: 21600
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          maxSurge: 25%
+          maxUnavailable: 25%
+          timeoutSeconds: 600
+          updatePeriodSeconds: 1
+        type: Rolling
+      template:
+        metadata:
+          labels:
+            app: gravitee-api-gateway
+            deploymentconfig: portal
+        spec:
+          containers:
+            - image: "portal:latest"
+              imagePullPolicy: Always
+              name: portal
+              ports:
+                - containerPort: 6379
+                  protocol: TCP
+              resources:
+                requests:
+                  memory: 50Mi
+                  cpu: 100m              
+                limits:
+                  cpu: 300m
+                  memory: 256Mi
+              livenessProbe:
+                failureThreshold: 3
+                initialDelaySeconds: 30
+                periodSeconds: 20
+                successThreshold: 1
+                httpGet:
+                  port: 8080
+                  path: /
+                timeoutSeconds: 15
+              readinessProbe:
+                failureThreshold: 3
+                initialDelaySeconds: 30
+                periodSeconds: 20
+                successThreshold: 1
+                httpGet:
+                  port: 8080
+                  path: /
+                timeoutSeconds: 15                             
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+              volumeMounts:
+                - mountPath: /var/www/localhost/htdocs/assets/config.json
+                  subPath: config.json
+                  name: portal-config                                             
+          dnsPolicy: ClusterFirst
+          restartPolicy: Always
+          schedulerName: default-scheduler
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - configMap:
+                items:
+                  - key: config.json
+                    path: config.json
+                name: portal-config
+              name: portal-config                      
+      test: false
+      triggers:
+        - type: ConfigChange
+        - imageChangeParams:
+            automatic: true
+            containerNames:
+              - portal
+            from:
+              kind: ImageStreamTag
+              name: "portal:latest"
+          type: ImageChange
 
 
-### fin alertengine
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: portal
+    spec:
+      ports:
+        - name: http
+          port: 8080
+          protocol: TCP
+          targetPort: 8080
+      selector:
+        app: gravitee-api-gateway
+        deploymentconfig: portal
+      sessionAffinity: None
+      type: ClusterIP
+
+
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+        build: portal
+      name: portal
+    spec:
+      failedBuildsHistoryLimit: 5
+      nodeSelector: null
+      output:
+        to:
+          kind: ImageStreamTag
+          name: 'portal:latest'
+      postCommit: {}
+      resources: {}
+      runPolicy: Serial
+      source:
+        contextDir: portal
+        git:
+          ref: master
+          uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
+        type: Git
+      strategy:
+        dockerStrategy:
+          dockerfilePath: Dockerfile
+        type: Docker
+      successfulBuildsHistoryLimit: 5
+      triggers:
+        - type: ConfigChange
+
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      labels:
+        app: gravitee-api-gateway
+      name: portal
+    spec: {}
 
 ### start portal
 

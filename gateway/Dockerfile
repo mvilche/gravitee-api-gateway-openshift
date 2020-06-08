@@ -1,6 +1,6 @@
 FROM alpine:3.11
 
-ENV GRAVITEE_VERSION=https://download.gravitee.io/graviteeio-apim/distributions/graviteeio-full-1.30.5.zip
+ENV GRAVITEE_VERSION=https://download.gravitee.io/graviteeio-apim/distributions/graviteeio-full-3.0.2.zip
 
 RUN apk add --update --no-cache wget busybox-extras busybox-suid curl shadow openjdk11 unzip && \
 mkdir -p /opt && cd tmp/ && echo "DESCARGANDO GRAVITEE..." && wget --no-verbose $GRAVITEE_VERSION -O /tmp/api.zip > /dev/null
