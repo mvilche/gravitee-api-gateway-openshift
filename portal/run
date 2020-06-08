@@ -32,7 +32,7 @@ fi
 
 if [ -f /opt/config/constants.json ]; then
 
-cat  /opt/config/constants.json > /var/www/localhost/htdocs/constants.json
+cat  /opt/config/config.json > /var/www/localhost/htdocs/config.json
 
 fi
 

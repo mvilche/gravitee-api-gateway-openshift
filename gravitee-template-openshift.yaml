@@ -44,7 +44,6 @@
   - apiVersion: v1
     data:
       gravitee.yml: |-
-        # -----------------------
         ############################################################################################################
         #################################### Gravitee.IO Gateway - Configuration ###################################
         ############################################################################################################
@@ -72,11 +71,13 @@
           secured: false
           alpn: false
         #  ssl:
-        #    clientAuth: false
+        #    clientAuth: none # Supports none, request, requires
         #    keystore:
+        #      type: jks # Supports jks, pem, pkcs12
         #      path: ${gravitee.home}/security/keystore.jks
         #      password: secret
         #    truststore:
+        #      type: jks # Supports jks, pem, pkcs12
         #      path: ${gravitee.home}/security/truststore.jks
         #      password: secret
         #  websocket:
@@ -164,8 +165,9 @@
         # All reporters are enabled by default. To stop one of them, you have to add the property 'enabled: false'
         reporters:
           # logging configuration
-          #logging:
-          #  max_size: -1 # max size per API log content respectively : client-request, client-response, proxy-request and proxy-response in MB (-1 means no limit)
+        #  logging:
+        #    max_size: -1 # max size per API log content respectively : client-request, client-response, proxy-request and proxy-response in MB (-1 means no limit)
+        #    excluded_response_types: video.*|audio.*|image.*|application\/octet-stream|application\/pdf # Response content types to exclude in logging (must be a regular expression)
           # Elasticsearch reporter
           elasticsearch:
             enabled: true # Is the reporter enabled or not (default to true)
@@ -177,7 +179,7 @@
         #      actions: 1000           # Number of requests action before flush
         #      flush_interval: 5       # Flush interval in seconds
         #    settings:
-        #      number_of_shards: 5
+        #      number_of_shards: 1
         #      number_of_replicas: 1
         #      refresh_interval: 5s
         #    pipeline:
@@ -200,7 +202,7 @@
             http:
               enabled: true
               port: 18082
-              host: 0.0.0.0
+              host: localhost
               authentication:
                 # authentication type to be used for the core services
                 # - none : to disable authentication
@@ -288,23 +290,21 @@
         #    header: X-Gravitee-Api-Key
         #    param: api-key
 
-        # Gravitee Alert Engine is only available with support
-        alerts:
-          enabled: false
-          default:
-            enabled: false
-            # must be reachable by other nodes
-            cluster:
-              host: localhost
-              port: 0
-              hazelcast:
-                config:
-                  path: /opt/gateway/config/hazelcast.xml
-
-        #legacy:
-        # Enable this parameter if you want the gateway act like version <1.25.11 .
-        #  See https://github.com/gravitee-io/issues/issues/2557
-        #  decode-url-params: true #you should not need to activate this.
+        #el:
+          # Allows to define which methods or classes are accessible to the Expression Language engine (/!\ caution, changing default whitelist may expose you to security issues).
+          # A complete list of default whitelist methods can be found here (https://raw.githubusercontent.com/gravitee-io/gravitee-expression-language/master/src/main/resources/whitelist).
+        #  whitelist:
+            # Allows to define if the specified list of method or classes should be append to the default one or should replace it.
+            # We recommend you to always choose 'append' unless you absolutely know what you are doing.
+        #    mode: append
+            # Define the list of classes or methods to append (or set) to made accessible to the Expression Language.
+            # start with 'method' to allow a specific method (complete signature).
+            # start with 'class' to allow a complete class. All methods of the class will then be accessible.
+        #    list:
+              # Ex: allow access to DateTimeFormatter.ofLocalizedDate(FormatStyle) method
+        #      - method java.time.format.DateTimeFormatter ofLocalizedDate java.time.format.FormatStyle
+              # Ex: allow access to all methods of DateTimeFormatter class
+        #      - class java.time.format.DateTimeFormatter
       logback.xml: |-
         <?xml version="1.0" encoding="UTF-8"?>
 
@@ -396,7 +396,7 @@
               memoryStoreEvictionPolicy="LFU">
           </cache>
 
-        </ehcache>                     
+        </ehcache>                  
     kind: ConfigMap
     metadata:
       name: gateway-config
@@ -819,22 +819,31 @@
             queueSize: 6000
           jmx: false
           statistics: false
-          accesslog:
-            enabled: true
-            path: ${gravitee.home}/logs/gravitee_accesslog_yyyy_mm_dd.log
-          secured: false
+        #  accesslog:
+        #    enabled: true
+        #    path: ${gravitee.home}/logs/gravitee_accesslog_yyyy_mm_dd.log
+        #  secured: false
         #  ssl:
         #    keystore:
+        #      type: jks # Supports jks, pkcs12
         #      path: ${gravitee.home}/security/keystore.jks
         #      password: secret
         #    truststore:
+        #      type: jks # Supports jks, pkcs12
         #      path: ${gravitee.home}/security/truststore.jks
         #      password: secret
 
         http:
           api:
-            # Configure the listening path for the API. Default to /management
-            #entrypoint: /management
+            # Configure the listening path for the API. Default to /
+            entrypoint: /
+            # Configure Management API and Portal API.
+            management:
+              enabled: true
+              entrypoint: ${http.api.entrypoint}management
+            portal:
+              enabled: true
+              entrypoint: ${http.api.entrypoint}portal
           cors:
             # Allows to configure the header Access-Control-Allow-Origin (default value: *)
             # '*' is a valid value but is considered as a security risk as it will be opened to cross origin requests from anywhere.
@@ -843,8 +852,11 @@
             #max-age: 864000
             # Which methods to allow (default value: OPTIONS, GET, POST, PUT, DELETE)
             #allow-methods: 'OPTIONS, GET, POST, PUT, DELETE'
-            # Which headers to allow (default values: Cache-Control, Pragma, Origin, Authorization, Content-Type, X-Requested-With, If-Match)
+            # Which headers to allow (default values: Cache-Control, Pragma, Origin, Authorization, Content-Type, X-Requested-With, If-Match, X-Xsrf-Token)
             #allow-headers: 'X-Requested-With'
+          csrf:
+            # Allows to enable or disable the CSRF protection. Enabled by default.
+            enabled: true
           hsts:
             enabled: true
             include-sub-domains: true
@@ -919,7 +931,7 @@
             http:
               enabled: true
               port: 18083
-              host: 0.0.0.0
+              host: localhost
               authentication:
                 # authentication type to be used for the core services
                 # - none : to disable authentication
@@ -934,6 +946,10 @@
             enabled: false
             prometheus:
               enabled: true
+
+          # v3 upgrader service. Can be disabled after first launch.
+          v3-upgrader:
+            enabled: true
 
         # Analytics repository is used to store all reporting, metrics, health-checks stored by gateway instances
         # This is the default configuration using Elasticsearch
@@ -976,26 +992,39 @@
               users:
                 - user:
                   username: user
+                  #firstname:
+                  #lastname:
                   # Passwords are encoded using BCrypt
                   # Password value: password
                   password: $2a$10$9kjw/SH9gucCId3Lnt6EmuFreUAcXSZgpvAYuW2ISv7hSOhHRH1AO
-                  roles: MANAGEMENT:USER, PORTAL:USER
+                  roles: ORGANIZATION:USER,ENVIRONMENT:USER
+                  # Useful to receive notifications
+                  #email:
                 - user:
                   username: admin
+                  #firstname:
+                  #lastname:
                   # Password value: admin
                   password: $2a$10$Ihk05VSds5rUSgMdsMVi9OKMIx2yUvMz7y9VP3rJmQeizZLrhLMyq
-                  roles: MANAGEMENT:ADMIN, PORTAL:ADMIN
+                  roles: ORGANIZATION:ADMIN,ENVIRONMENT:ADMIN
+                  #email:
                 - user:
                   username: api1
+                  #firstname:
+                  #lastname:
                   # Password value: api1
                   password: $2a$10$iXdXO4wAYdhx2LOwijsp7.PsoAZQ05zEdHxbriIYCbtyo.y32LTji
                   # You can declare multiple roles using comma separator
-                  roles: MANAGEMENT:API_PUBLISHER, PORTAL:API_PUBLISHER
+                  roles: ORGANIZATION:USER,ENVIRONMENT:API_PUBLISHER
+                  #email:
                 - user:
                   username: application1
+                  #firstname:
+                  #lastname:
                   # Password value: application1
                   password: $2a$10$2gtKPYRB9zaVaPcn5RBx/.3T.7SeZoDGs9GKqbo9G64fKyXFR1He.
-                  roles: MANAGEMENT:USER, PORTAL:USER
+                  roles: ORGANIZATION:USER,ENVIRONMENT:USER
+                  #email:
             # Enable authentication using internal repository
             - type: gravitee
               # allow search results to display the user email. Be careful, It may be contrary to the user privacy.
@@ -1087,10 +1116,29 @@
           # Default scheme used when creating an API from a Swagger descriptor if there is no scheme specified.
           scheme: https
 
+        # User management configuration
         user:
           login:
             # Create a default application when user connects to the portal for the very first time (default true)
-            #defaultApplication: true
+            defaultApplication: true
+
+          # Password complexity validation policy
+          # Applications should enforce password complexity rules to discourage easy to guess passwords.
+          # Passwords should require a minimum level of complexity that makes sense for the application and its user population.
+          password:
+            policy:
+              # Regex pattern for password validation (default to OWASP recommendations).
+              # 8 to 32 characters, no more than 2 consecutive equal characters, min 1 special characters (@ & # ...), min 1 upper case character.
+              pattern: ^(?:(?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))(?!.*(.)\1{2,})[A-Za-z0-9!~<>,;:_\-=?*+#."'&§`£€%°()\\\|\[\]\-\$\^\@\/]{8,32}$
+                      # Example : ^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\S+$).{8,}$
+                      # ^                # start-of-string
+                      #(?=.*[0-9])       # a digit must occur at least once
+                      #(?=.*[a-z])       # a lower case letter must occur at least once
+                      #(?=.*[A-Z])       # an upper case letter must occur at least once
+                      #(?=.*[@#$%^&+=])  # a special character must occur at least once
+                      #(?=\S+$)          # no whitespace allowed in the entire string
+                      #.{8,}             # anything, at least eight places though
+                      #$                 # end-of-string
           creation:
             token:
               #expire-after: 86400
@@ -1104,14 +1152,27 @@
         # The portal URL used in emails
         portalURL: http://localhost:3000/
 
+        # Enable / disable documentation sanitize. Enabled by default.
+        documentation:
+          markdown:
+            sanitize: true
+
+        #imports:
+          # Enable / disable import from private hosts. Enabled by default. (See https://en.wikipedia.org/wiki/Private_network)
+        #  allow-from-private: true
+          # Empty whitelist means all urls are allowed. Note: allow-from-private is ignored when whitelist is defined.
+        #  whitelist:
+        #      - https://whitelist.domain1.com
+        #      - https://restricted.domain2.com/whitelisted/path
+
         search:
-          data: /opt/management/data
+          data: ${gravitee.home}/data
 
         # global configuration of the http client
         #httpClient:
         #  timeout: 10000 # in milliseconds
         #  proxy:
-        #    type: HTML #HTTP, SOCK4, SOCK5
+        #    type: HTTP #HTTP, SOCK4, SOCK5
         #    http:
         #      host: localhost
         #      port: 3128
@@ -1137,19 +1198,40 @@
         #      trustAll: false
         #      keyStore:
         #      keyStorePassword:
+        #  webhook:
+        #    enabled: true
+            # Empty whitelist means all urls are allowed.
+        #    whitelist:
+        #      - https://whitelist.domain1.com
+        #      - https://restricted.domain2.com/whitelisted/path
 
-        # Gravitee Alert Engine is only available with support
-        alerts:
-          enabled: false
-          default:
-            enabled: false
-            # must be reachable by other nodes
-            cluster:
-              host: localhost
-              port: 0
-              hazelcast:
-                config:
-                  path: ${gravitee.home}/config/hazelcast.xml
+        # Allows to enable or disable recaptcha (see https://developers.google.com/recaptcha/docs/v3). Currently, it only affect the user registration route.
+        #reCaptcha:
+        #  enabled: false
+        #  siteKey:
+        #  secretKey:
+        #  minScore: 0.5
+        #  serviceUrl: https://www.google.com/recaptcha/api/siteverify
+
+        #el:
+          # Allows to define which methods or classes are accessible to the Expression Language engine (/!\ caution, changing default whitelist may expose you to security issues).
+          # A complete list of default whitelist methods can be found here (https://raw.githubusercontent.com/gravitee-io/gravitee-expression-language/master/src/main/resources/whitelist).
+        #  whitelist:
+            # Allows to define if the specified list of method or classes should be append to the default one or should replace it.
+            # We recommend you to always choose 'append' unless you absolutely kwnow what you are doing.
+        #    mode: append
+            # Define the list of classes or methods to append (or set) to made accessible to the Expression Language.
+            # start with 'method' to allow a specific method (complete signature).
+            # start with 'class' to allow a complete class. All methods of the class will then be accessible.
+        #    list:
+              # Ex: allow access to DateTimeFormatter.ofLocalizedDate(FormatStyle) method
+        #      - method java.time.format.DateTimeFormatter ofLocalizedDate java.time.format.FormatStyle
+              # Ex: allow access to all methods of DateTimeFormatter class
+        #      - class java.time.format.DateTimeFormatter
+
+        # Allows to enable or disable the 'Subscribe to newsletter' feature when user completes his profile on first log in. Default is enabled.
+        #newsletter:
+        #  enabled: true
       logback.xml: |-
         <?xml version="1.0" encoding="UTF-8"?>
 
@@ -1406,14 +1488,7 @@
     data:
       config.json: |-
         {
-          "baseUrl": "/portal/environments/DEFAULT",
-          "loaderUrl": "assets/images/gravitee-loader.gif",
-          "pagination": {
-            "size": {
-              "default": 10,
-              "values": [5, 10, 25, 50, 100]
-            }
-          }
+          "baseURL": "http://${ADMIN_HOST}/management/"
         }
     kind: ConfigMap
     metadata:
