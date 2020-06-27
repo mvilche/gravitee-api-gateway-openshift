@@ -1488,7 +1488,7 @@
     data:
       config.json: |-
         {
-          "baseURL": "http://${ADMIN_HOST}/management/"
+          "baseURL": "http://${ADMIN_HOST}/portal/environments/DEFAULT"
         }
     kind: ConfigMap
     metadata:
@@ -1665,7 +1665,7 @@
     data:
       constants.json: |-
         {
-          "baseURL": "http://${ADMIN_HOST}/management/"
+          "baseURL": "http://${ADMIN_HOST}/management/organizations/DEFAULT/environments/DEFAULT/"
         }
     kind: ConfigMap
     metadata:
@@ -1867,7 +1867,7 @@
                   value: gravitee
                 - name: ES_JAVA_OPTS
                   value: -Xmx512m -Xms512m
-              image: elasticsearch:7.6.2
+              image: elasticsearch:7.8.0
               imagePullPolicy: Always
               name: elasticsearch
               ports:
@@ -1934,7 +1934,7 @@
               - elasticsearch
             from:
               kind: ImageStreamTag
-              name: 'elasticsearch:7.6.2'
+              name: 'elasticsearch:7.8.0'
           type: ImageChange
 
 
@@ -1969,10 +1969,10 @@
         name: elasticsearch
     spec:
         tags:
-          - name: '7.6.2'
+          - name: '7.8.0'
             from:
                 kind: DockerImage
-                name: docker.elastic.co/elasticsearch/elasticsearch:7.6.0
+                name: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
 
 
 
