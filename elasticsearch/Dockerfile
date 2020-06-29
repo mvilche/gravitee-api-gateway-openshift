@@ -7,14 +7,15 @@ RUN apk add --update --no-cache wget busybox-extras bash busybox-suid curl shado
 wget --no-verbose $ELASTIC_VERSION -O /tmp/elastic.tar.gz > /dev/null && \
 mkdir -p /opt/elasticsearch
 
-COPY run /usr/bin/run
-
 RUN cd tmp/ && \
 tar zxvf /tmp/elastic.tar.gz -C /opt/elasticsearch --strip-components 1 && \
 rm -rf /tmp/*.tar.gz && \ 
 rm -rf  /etc/localtime && \
-touch /etc/localtime /etc/timezone && \
-chown -R 1001 /usr/bin/run /opt && \
+touch /etc/localtime /etc/timezone
+
+COPY run /usr/bin/run
+
+RUN chown -R 1001 /usr/bin/run /opt && \
 chgrp -R 0 /usr/bin/run /opt && \
 chmod -R g=u /usr/bin/run /opt /etc/localtime /etc/timezone
 
