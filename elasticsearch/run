@@ -52,5 +52,5 @@ exec /opt/elasticsearch/bin//elasticsearch -E path.data=/opt/elasticsearch/data 
 -E node.name=$HOSTNAME \
 -E cluster.name=${CLUSTER_NAME:-openshift} \
 -E bootstrap.memory_lock=true \
--E discovery.seed_hosts=elasticsearch-$NUMBER1,elasticsearch-$NUMBER2 \
+-E discovery.seed_hosts=elasticsearch-$NUMBER1.elasticsearch,elasticsearch-$NUMBER2.elasticsearch \
 -E cluster.initial_master_nodes=elasticsearch-0.elasticsearch,elasticsearch-1.elasticsearch,elasticsearch-2.elasticsearch
