@@ -22,6 +22,6 @@ USER 1001
 
 WORKDIR /opt/elasticsearch
 
-EXPOSE 9200
+EXPOSE 9200 9300
 
 CMD ["/usr/bin/run"]
