@@ -49,7 +49,7 @@ export NUMBER2=1
 fi
 
 exec /opt/elasticsearch/bin//elasticsearch -E path.data=/opt/elasticsearch/data \
--E node.name=$HOSTNAME \
+-E node.name=$HOSTNAME.elasticsearch \
 -E network.host=0.0.0.0 \
 -E cluster.name=${CLUSTER_NAME:-openshift} \
 -E bootstrap.memory_lock=${BOOSTRAP_MEMORYLOCK:-false} \
