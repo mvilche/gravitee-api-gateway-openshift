@@ -30,9 +30,9 @@ if [ ! -z "$WAITFOR_HOST" ] && [ ! -z "$WAITFOR_PORT" ] ; then
 	echo "···································································································"
 fi
 
-if [ -f /opt/config/constants.json ]; then
+if [ -f /opt/config/config.json ]; then
 
-cat  /opt/config/config.json > /var/www/localhost/htdocs/config.json
+cat  /opt/config/config.json > /var/www/localhost/htdocs/assets/config.json
 
 fi
 

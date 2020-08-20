@@ -31,7 +31,7 @@
     metadata:
       finalizers:
       - kubernetes.io/pvc-protection
-      name: gravitee-api-gateway-data
+      name: gravitee-api-management-data
     spec:
       accessModes:
       - ReadWriteOnce
@@ -408,13 +408,13 @@
     kind: DeploymentConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: gateway
     spec:
       replicas: 1
       revisionHistoryLimit: 10
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: gateway
       strategy:
         activeDeadlineSeconds: 21600
@@ -429,7 +429,7 @@
       template:
         metadata:
           labels:
-            app: gravitee-api-gateway
+            app: gravitee-api-management
             deploymentconfig: gateway
         spec:
           containers:
@@ -501,7 +501,7 @@
               name: gateway-config
             - name: gateway
               persistentVolumeClaim:
-                claimName: gravitee-api-gateway-data               
+                claimName: gravitee-api-management-data               
       test: false
       triggers:
         - type: ConfigChange
@@ -520,7 +520,7 @@
     kind: BuildConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         build: gateway
       name: gateway
     spec:
@@ -554,7 +554,7 @@
     kind: Service
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: gateway
     spec:
       ports:
@@ -567,7 +567,7 @@
           protocol: TCP
           targetPort: 18082                                    
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: gateway
       sessionAffinity: None
       type: ClusterIP
@@ -576,7 +576,7 @@
     kind: Route
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: gateway
     spec:
       host:
@@ -593,7 +593,7 @@
     kind: ImageStream
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: gateway
     spec: {}
 
@@ -622,13 +622,13 @@
     kind: DeploymentConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: mongo
     spec:
       replicas: 1
       revisionHistoryLimit: 10
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: mongo
       strategy:
         activeDeadlineSeconds: 21600
@@ -637,7 +637,7 @@
       template:
         metadata:
           labels:
-            app: gravitee-api-gateway
+            app: gravitee-api-management
             deploymentconfig: mongo
         spec:
           containers:         
@@ -702,7 +702,7 @@
           volumes:
             - name: mongo
               persistentVolumeClaim:
-                claimName: gravitee-api-gateway-data
+                claimName: gravitee-api-management-data
             - configMap:
                 name: mongo-config
               name: mongo-config
@@ -724,7 +724,7 @@
     kind: BuildConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         build: mongo
       name: mongo
     spec:
@@ -758,7 +758,7 @@
     kind: Service
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: mongo
     spec:
       ports:
@@ -767,7 +767,7 @@
           protocol: TCP
           targetPort: 27017                             
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: mongo
       sessionAffinity: None
       type: ClusterIP
@@ -778,7 +778,7 @@
     kind: ImageStream
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: mongo
     spec: {}
 
@@ -1297,13 +1297,13 @@
     kind: DeploymentConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-api
     spec:
       replicas: 1
       revisionHistoryLimit: 10
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: management-api
       strategy:
         activeDeadlineSeconds: 21600
@@ -1312,7 +1312,7 @@
       template:
         metadata:
           labels:
-            app: gravitee-api-gateway
+            app: gravitee-api-management
             deploymentconfig: management-api
         spec:
           containers:
@@ -1382,7 +1382,7 @@
               name: management-api-config
             - name: management-api
               persistentVolumeClaim:
-                claimName: gravitee-api-gateway-data              
+                claimName: gravitee-api-management-data              
       test: false
       triggers:
         - type: ConfigChange
@@ -1401,7 +1401,7 @@
     kind: BuildConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         build: management-api
       name: management-api
     spec:
@@ -1433,7 +1433,7 @@
     kind: Route
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-api
     spec:
       host: ${ADMIN_HOST}
@@ -1450,7 +1450,7 @@
     kind: Service
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-api
     spec:
       ports:
@@ -1463,7 +1463,7 @@
           protocol: TCP
           targetPort: 18083                                     
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: management-api
       sessionAffinity: None
       type: ClusterIP
@@ -1474,7 +1474,7 @@
     kind: ImageStream
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-api
     spec: {}
 
@@ -1499,7 +1499,7 @@
     kind: Route
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: portal
     spec:
       host:
@@ -1515,13 +1515,13 @@
     kind: DeploymentConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: portal
     spec:
       replicas: 1
       revisionHistoryLimit: 10
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: portal
       strategy:
         activeDeadlineSeconds: 21600
@@ -1536,7 +1536,7 @@
       template:
         metadata:
           labels:
-            app: gravitee-api-gateway
+            app: gravitee-api-management
             deploymentconfig: portal
         spec:
           containers:
@@ -1574,7 +1574,7 @@
               terminationMessagePath: /dev/termination-log
               terminationMessagePolicy: File
               volumeMounts:
-                - mountPath: /var/www/localhost/htdocs/assets/config.json
+                - mountPath: /opt/config/config.json
                   subPath: config.json
                   name: portal-config                                             
           dnsPolicy: ClusterFirst
@@ -1605,7 +1605,7 @@
     kind: Service
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: portal
     spec:
       ports:
@@ -1614,7 +1614,7 @@
           protocol: TCP
           targetPort: 8080
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: portal
       sessionAffinity: None
       type: ClusterIP
@@ -1624,7 +1624,7 @@
     kind: BuildConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         build: portal
       name: portal
     spec:
@@ -1655,7 +1655,7 @@
     kind: ImageStream
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: portal
     spec: {}
 
@@ -1676,7 +1676,7 @@
     kind: Route
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-ui
     spec:
       host:
@@ -1692,13 +1692,13 @@
     kind: DeploymentConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-ui
     spec:
       replicas: 1
       revisionHistoryLimit: 10
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: management-ui
       strategy:
         activeDeadlineSeconds: 21600
@@ -1713,7 +1713,7 @@
       template:
         metadata:
           labels:
-            app: gravitee-api-gateway
+            app: gravitee-api-management
             deploymentconfig: management-ui
         spec:
           containers:
@@ -1778,7 +1778,7 @@
     kind: Service
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-ui
     spec:
       ports:
@@ -1787,7 +1787,7 @@
           protocol: TCP
           targetPort: 8080
       selector:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         deploymentconfig: management-ui
       sessionAffinity: None
       type: ClusterIP
@@ -1797,7 +1797,7 @@
     kind: BuildConfig
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
         build: management-ui
       name: management-ui
     spec:
@@ -1828,152 +1828,187 @@
     kind: ImageStream
     metadata:
       labels:
-        app: gravitee-api-gateway
+        app: gravitee-api-management
       name: management-ui
     spec: {}
 
 
 
-    ### elasticsearch
+  ### elasticsearch
 
 
-### COMIENZO elasticsearch
+
   - apiVersion: v1
-    kind: DeploymentConfig
+    data:
+      jvm.properties: |-
+        -Djava.awt.headless=true -XX:+UseContainerSupport -XX:MaxRAMPercentage=90.0 -Dfile.encoding=UTF8 -XX:+ExitOnOutOfMemoryError
+    
+    kind: ConfigMap
     metadata:
-      labels:
-        app: gravitee-api-gateway
       name: elasticsearch
-    spec:
-      replicas: 1
-      selector:
-        app: gravitee-api-gateway
-        deploymentconfig: elasticsearch
-      strategy:
-        activeDeadlineSeconds: 21600
-        resources: {}
-        type: Recreate
-      template:
-        metadata:
-          labels:
-            app: gravitee-api-gateway
-            deploymentconfig: elasticsearch
-        spec:
-          containers:
-            - env:
-                - name: discovery.type
-                  value: single-node
-                - name: cluster.name
-                  value: gravitee
-                - name: ES_JAVA_OPTS
-                  value: -Xmx512m -Xms512m
-              image: elasticsearch:7.8.0
-              imagePullPolicy: Always
-              name: elasticsearch
-              ports:
-                - containerPort: 9200
-                  protocol: TCP
-                - containerPort: 9300
-                  protocol: TCP                  
-              livenessProbe:
-                exec:
-                  command:
-                  - bash
-                  - "-c"
-                  - |
-                    nc -z -v -w5 127.0.0.1 9200
-                    if [ "$?" == 0 ]; then
-                    exit 0
-                    else
-                    exit 1
-                    fi
-                initialDelaySeconds: 90
-                timeoutSeconds: 5
-              readinessProbe:
-                exec:
-                  command:
-                  - bash
-                  - "-c"
-                  - |
-                    nc -z -v -w5 127.0.0.1 9200
-                    if [ "$?" == 0 ]; then
-                    exit 0
-                    else
-                    exit 1
-                    fi
-                initialDelaySeconds: 30
-                timeoutSeconds: 15
-              resources:
-                requests:
-                  memory: 512Mi
-                  cpu: 500m              
-                limits:
-                  cpu: 2000m
-                  memory: 1024Mi
-              terminationMessagePath: /dev/termination-log
-              terminationMessagePolicy: File
-              volumeMounts:
-                - mountPath: /usr/share/elasticsearch/data
-                  name: elasticsearch
-                  subPath: elasticsearch
-          dnsPolicy: ClusterFirst
-          restartPolicy: Always
-          schedulerName: default-scheduler
-          securityContext: {}
-          terminationGracePeriodSeconds: 30
-          volumes:
-            - name: elasticsearch
-              persistentVolumeClaim:
-                claimName: gravitee-api-gateway-data
-      test: false
-      triggers:
-        - type: ConfigChange
-        - imageChangeParams:
-            automatic: true
-            containerNames:
-              - elasticsearch
-            from:
-              kind: ImageStreamTag
-              name: 'elasticsearch:7.8.0'
-          type: ImageChange
 
 
 
   - apiVersion: v1
     kind: Service
     metadata:
-      labels:
-        app: gravitee-api-gateway
       name: elasticsearch
+      labels:
+        app: gravitee-api-management
     spec:
       ports:
-        - name: tcp
-          port: 9200
-          protocol: TCP
-          targetPort: 9200
-        - name: tcp2
-          port: 9300
-          protocol: TCP
-          targetPort: 9300          
+      - port: 9200
+        name: client
+      - port: 9300
+        name: admin
+      clusterIP: None
       selector:
-        app: gravitee-api-gateway
-        deploymentconfig: elasticsearch
-      sessionAffinity: None
-      type: ClusterIP
+        service: elasticsearch
 
+
+
+
+
+  - apiVersion: apps/v1beta1
+    kind: StatefulSet
+    metadata:
+      name: elasticsearch
+    spec:
+      selector:
+        matchLabels:
+          app: gravitee-api-management   
+      podManagementPolicy: Parallel
+      serviceName: elasticsearch
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 1500Mi
+      replicas: 3
+      template:
+        metadata:
+          annotations:
+            alpha.image.policy.openshift.io/resolve-names: '*'
+          labels:
+            app: gravitee-api-management
+            service: elasticsearch
+        spec:
+          containers:
+          - env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
+            name: elasticsearch
+            image: "elasticsearch:latest"
+            imagePullPolicy: Always
+            resources:
+              requests:
+                cpu: 500m
+                memory: 512Mi
+              limits:
+                cpu: 1000m
+                memory: 1500Mi
+            ports:
+            - containerPort: 9200
+              name: client
+            - containerPort: 9300
+              name: admin
+            volumeMounts:
+            - name: data
+              mountPath: /opt/elasticsearch/data
+            - name: configmap
+              mountPath: /opt/elasticsearch/config/jvm.options
+              subPath: jvm.options
+            readinessProbe:
+              exec:
+                command:
+                - bash
+                - "-c"
+                - |
+                  nc -z -v -w5 127.0.0.1 9200
+                  if [ "$?" == 0 ]; then
+                  exit 0
+                  else
+                  exit 1
+                  fi
+              initialDelaySeconds: 20
+              timeoutSeconds: 15
+          resources:
+            requests:
+              cpu: 500m
+              memory: 128Mi
+            limits:
+              cpu: 1
+              memory: 512Mi                     
+          volumes:
+          - name: configmap
+            items:
+              - key: jvm.options
+                path: jvm.options
+            configMap:
+              name: elasticsearch
+      volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 5Gi
+
+
+############################## FIN elasticsearch
+
+
+###################BUILDCONFIGS
+
+
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      labels:
+        app: gravitee-api-management
+        build: elasticsearch
+      name: elasticsearch
+    spec:
+      failedBuildsHistoryLimit: 5
+      nodeSelector: null
+      output:
+        to:
+          kind: ImageStreamTag
+          name: 'elasticsearch:latest'
+      postCommit: {}
+      resources: {}
+      runPolicy: Serial
+      source:
+        contextDir: elasticsearch
+        git:
+          ref: master
+          uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
+        type: Git
+      strategy:
+        dockerStrategy:
+          dockerfilePath: Dockerfile
+        type: Docker
+      successfulBuildsHistoryLimit: 5
+      triggers:
+        - type: ConfigChange
 
 
   - apiVersion: v1
     kind: ImageStream
     metadata:
-        name: elasticsearch
+      labels:
+        app: gravitee-api-management
+      name: elasticsearch
+    tag: latest
     spec:
-        tags:
-          - name: '7.8.0'
-            from:
-                kind: DockerImage
-                name: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
-
+      lookupPolicy:
+        local: true  
 
 
 

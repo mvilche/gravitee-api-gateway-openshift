@@ -1,0 +1,217 @@
+      ##comienzo Template
+    apiVersion: v1
+    kind: Template
+    metadata:
+      name: kafka-elasticsearch-openshift-no-monitoring-mvilche
+      labels:
+        template: kafka-elasticsearch-openshift-no-monitoring-mvilche
+        autor: "Martin_Fabrizzio_Vilche"
+      annotations:
+        openshift.io/display-name: "kafka-elasticsearch-openshift-no-monitoring-mvilche"
+        iconClass: "icon-github"
+        description: >-
+          APACHE KAFKA + elasticsearch + KAFKA MANAGER WEB
+          Martin Fabrizzio Vilche.
+          https://github.com/mvilche.
+        openshift.io/provider-display-name: "Martin Fabrizzio Vilche"
+        openshift.io/documentation-url: "https://github.com/mvilche/wildfly-s2i.git"
+        openshift.io/support-url: "https://github.com/mvilche/wildfly-s2i.git"
+    message: >-
+      Los servicios iniciarán en un par de minutos...
+      Martin Fabrizzio Vilche
+
+    objects:
+
+
+  ############################## ZOOKEPEER
+
+
+    - apiVersion: v1
+      data:
+        jvm.properties: |-
+          -Djava.awt.headless=true -XX:+UseContainerSupport -XX:MaxRAMPercentage=90.0 -Dfile.encoding=UTF8 -XX:+ExitOnOutOfMemoryError
+      
+      kind: ConfigMap
+      metadata:
+        name: elasticsearch
+
+
+
+    - apiVersion: v1
+      kind: Service
+      metadata:
+        name: elasticsearch
+        labels:
+          app: gravitee-api-management
+      spec:
+        ports:
+        - port: 9200
+          name: client
+        - port: 9300
+          name: admin
+        clusterIP: None
+        selector:
+          service: elasticsearch
+
+
+
+
+
+    - apiVersion: apps/v1beta1
+      kind: StatefulSet
+      metadata:
+        name: elasticsearch
+      spec:
+        selector:
+          matchLabels:
+            app: gravitee-api-management   
+        podManagementPolicy: Parallel
+        serviceName: elasticsearch
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1500Mi
+        replicas: 3
+        template:
+          metadata:
+            annotations:
+              alpha.image.policy.openshift.io/resolve-names: '*'
+            labels:
+              app: gravitee-api-management
+              service: elasticsearch
+          spec:
+            containers:
+            - env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: metadata.namespace
+              name: elasticsearch
+              image: "elasticsearch:latest"
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1500Mi
+              ports:
+              - containerPort: 9200
+                name: client
+              - containerPort: 9300
+                name: admin
+              volumeMounts:
+              - name: data
+                mountPath: /opt/elasticsearch/data
+              - name: configmap
+                mountPath: /opt/elasticsearch/config/jvm.options
+                subPath: jvm.options
+              livenessProbe:
+                exec:
+                  command:
+                  - bash
+                  - "-c"
+                  - |
+                    nc -z -v -w5 127.0.0.1 9200
+                    if [ "$?" == 0 ]; then
+                    exit 0
+                    else
+                    exit 1
+                    fi
+                initialDelaySeconds: 90
+                timeoutSeconds: 5
+              readinessProbe:
+                exec:
+                  command:
+                  - bash
+                  - "-c"
+                  - |
+                    nc -z -v -w5 127.0.0.1 9200
+                    if [ "$?" == 0 ]; then
+                    exit 0
+                    else
+                    exit 1
+                    fi
+                initialDelaySeconds: 30
+                timeoutSeconds: 15
+            resources:
+              requests:
+                cpu: 500m
+                memory: 128Mi
+              limits:
+                cpu: 1
+                memory: 512Mi                     
+            volumes:
+            - name: configmap
+              items:
+                - key: jvm.options
+                  path: jvm.options
+              configMap:
+                name: elasticsearch
+        volumeClaimTemplates:
+        - metadata:
+            name: data
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            resources:
+              requests:
+                storage: 5Gi
+
+
+  ############################## FIN elasticsearch
+
+
+  ###################BUILDCONFIGS
+
+
+    - apiVersion: v1
+      kind: BuildConfig
+      metadata:
+        labels:
+          app: gravitee-api-management
+          build: elasticsearch
+        name: elasticsearch
+      spec:
+        failedBuildsHistoryLimit: 5
+        nodeSelector: null
+        output:
+          to:
+            kind: ImageStreamTag
+            name: 'elasticsearch:latest'
+        postCommit: {}
+        resources: {}
+        runPolicy: Serial
+        source:
+          contextDir: elasticsearch
+          git:
+            ref: master
+            uri: 'https://github.com/mvilche/gravitee-api-management-openshift.git'
+          type: Git
+        strategy:
+          dockerStrategy:
+            dockerfilePath: Dockerfile
+          type: Docker
+        successfulBuildsHistoryLimit: 5
+        triggers:
+          - type: ConfigChange
+
+
+    - apiVersion: v1
+      kind: ImageStream
+      metadata:
+        labels:
+          app: gravitee-api-management
+        name: elasticsearch
+      tag: latest
+      spec:
+        lookupPolicy:
+          local: true  
+
+  ########################
+
+  #####################
