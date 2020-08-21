@@ -536,7 +536,7 @@
       source:
         contextDir: gateway
         git:
-          ref: master
+          ref: developer
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
         type: Git
       strategy:
@@ -740,7 +740,7 @@
       source:
         contextDir: mongo
         git:
-          ref: master
+          ref: developer
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
         type: Git
       strategy:
@@ -1417,7 +1417,7 @@
       source:
         contextDir: management-api
         git:
-          ref: master
+          ref: developer
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
         type: Git
       strategy:
@@ -1640,7 +1640,7 @@
       source:
         contextDir: portal
         git:
-          ref: master
+          ref: developer
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
         type: Git
       strategy:
@@ -1813,7 +1813,7 @@
       source:
         contextDir: management-ui
         git:
-          ref: master
+          ref: developer
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
         type: Git
       strategy:
@@ -1987,7 +1987,7 @@
       source:
         contextDir: elasticsearch
         git:
-          ref: master
+          ref: developer
           uri: 'https://github.com/mvilche/gravitee-api-gateway-openshift.git'
         type: Git
       strategy:
